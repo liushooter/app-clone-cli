@@ -1,0 +1,111 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+      RELEASE_ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Validate tag and architecture
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9a-z]+(\.[0-9a-z]+)*)?$ ]]; then
+            echo 'Expected a tag such as v0.1.0 or v0.2.0-rc.1.' >&2
+            exit 1
+          fi
+          test "$(uname -m)" = "$RELEASE_ARCH"
+          bash -n build.sh
+      - name: Build and test
+        run: make test
+      - name: Build release
+        run: make release
+      - name: Verify and package standalone binary
+        run: |
+          version="$(./build/app-clone --version)"
+          if [[ "$version" != "app-clone ${RELEASE_TAG#v}" ]]; then
+            echo 'Tag must match AppCloneVersion.current in sources/core/version.swift.' >&2
+            exit 1
+          fi
+          test "$(lipo -archs build/app-clone)" = "$RELEASE_ARCH"
+          mkdir -p dist
+          archive="app-clone-${RELEASE_TAG}-macos-${RELEASE_ARCH}.tar.gz"
+          COPYFILE_DISABLE=1 tar -czf "dist/$archive" -C build app-clone \
+            -C "$GITHUB_WORKSPACE" readme.md readme.zh-cn.md
+          extracted="$(mktemp -d)"
+          tar -xzf "dist/$archive" -C "$extracted"
+          (
+            cd "$extracted"
+            test "$(./app-clone --version)" = "$version"
+            ./app-clone help --lang en
+            ./app-clone help --lang zh
+            ./app-clone doctor
+          )
+          git diff --exit-code
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ matrix.arch }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+      - name: Generate checksums
+        working-directory: dist
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          test -f "app-clone-${RELEASE_TAG}-macos-arm64.tar.gz"
+          test -f "app-clone-${RELEASE_TAG}-macos-x86_64.tar.gz"
+          sha256sum ./*.tar.gz > sha256sums.txt
+          sha256sum --check sha256sums.txt
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          flags=()
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            flags+=(--prerelease)
+          fi
+          gh release create "$RELEASE_TAG" dist/*.tar.gz dist/sha256sums.txt \
+            --verify-tag --generate-notes --title "$RELEASE_TAG" "${flags[@]}"

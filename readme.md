@@ -18,6 +18,22 @@ The executable is `build/app-clone`. It works outside the source directory and d
 
 `make` (or `make build`) builds a development binary. `make test` compiles and runs tests; `make help` lists the available targets. The lowercase `makefile` is discovered automatically by `make` and delegates compilation to `build.sh`. Compiler and SDK are resolved together using `xcrun`; advanced builds may set `APP_CLONE_SWIFTC` and `APP_CLONE_SDK` to a matching pair. No machine-specific paths are configured in the repository.
 
+## Releases
+
+Pushing a `v*` tag triggers GitHub Actions to run the full suite and build optimized binaries on both Apple Silicon and Intel. Once both builds succeed, it creates a GitHub Release with two `.tar.gz` archives and `sha256sums.txt`. Each archive contains the executable and both readme files and requires macOS 14 or later.
+
+Update and commit the version in `sources/core/version.swift` before pushing the corresponding tag. The tag without its `v` prefix must exactly match the CLI version, or the release fails. For version `0.1.0`:
+
+```sh
+git push origin main
+git tag -a v0.1.0 -m "Release v0.1.0"
+git push origin v0.1.0
+```
+
+Tags may look like `v0.1.0` or `v0.2.0-rc.1`; the latter produces a prerelease. Publishing uses the built-in `GITHUB_TOKEN`, with no additional release secret required. Failed runs can be rerun in Actions; use a new version and tag for changes to an already published release.
+
+Download and extract the archive for your architecture. Place it beside the checksum file and run `shasum -a 256 --check --ignore-missing sha256sums.txt` to verify the downloaded archive.
+
 ## Usage
 
 ```sh
