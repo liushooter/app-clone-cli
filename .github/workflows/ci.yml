@@ -23,9 +23,9 @@ jobs:
       - name: Check shell syntax
         run: bash -n build.sh
       - name: Build and test
-        run: ./build.sh test
+        run: make test
       - name: Build release
-        run: ./build.sh release
+        run: make release
       - name: Check standalone binary
         run: |
           ./build/app-clone --version --json

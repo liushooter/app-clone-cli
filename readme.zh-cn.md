@@ -9,14 +9,14 @@
 需要 macOS 14+、提供 Swift 6+ 的 Apple 开发工具链；运行测试还需要 Python 3。构建脚本支持 Apple Silicon 和 Intel，并为当前机器架构生成程序。
 
 ```sh
-./build.sh release
+make release
 ./build/app-clone --version
 ./build/app-clone help --lang zh
 ```
 
 生成的 `build/app-clone` 可独立运行，不依赖源码目录、外部翻译文件或单独的核心库。可将它复制到 `PATH` 中的目录。
 
-`./build.sh` 生成开发版本，`./build.sh test` 编译并测试。脚本通过 `xcrun` 获取同一开发工具链中的编译器和 SDK；需要自定义时，可用 `APP_CLONE_SWIFTC` 和 `APP_CLONE_SDK` 指定匹配的组合。
+`make`（或 `make build`）生成开发版本，`make test` 编译并测试，`make help` 查看可用目标。小写文件 `makefile` 会被 `make` 自动识别，内部调用 `build.sh` 完成编译。脚本通过 `xcrun` 获取同一开发工具链中的编译器和 SDK；需要自定义时，可用 `APP_CLONE_SWIFTC` 和 `APP_CLONE_SDK` 指定匹配的组合。
 
 ## 使用
 
@@ -83,7 +83,7 @@
 ## 开发
 
 ```sh
-./build.sh test
+make test
 ```
 
 包含 40 项 CLI 集成测试，以及 Swift 进程、国际化和链接检查。测试使用临时目录中的应用夹具并自动清理。macOS CI 执行测试和发布构建检查。

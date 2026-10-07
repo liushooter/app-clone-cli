@@ -9,14 +9,14 @@ A macOS command-line tool for creating and managing independent app copies. Writ
 Requires macOS 14 or later and an Apple developer toolchain with Swift 6 or later. Tests also require Python 3. Both Apple Silicon and Intel targets are supported by the build script; it builds for the current machine.
 
 ```sh
-./build.sh release
+make release
 ./build/app-clone --version
 ./build/app-clone help --lang en
 ```
 
 The executable is `build/app-clone`. It works outside the source directory and does not require translation files or a separate core library. Add its directory to your `PATH`, or copy the executable to a directory already on your `PATH`.
 
-`./build.sh` builds a development binary. Compiler and SDK are resolved together using `xcrun`; advanced builds may set `APP_CLONE_SWIFTC` and `APP_CLONE_SDK` to a matching pair. No machine-specific paths are configured in the repository.
+`make` (or `make build`) builds a development binary. `make test` compiles and runs tests; `make help` lists the available targets. The lowercase `makefile` is discovered automatically by `make` and delegates compilation to `build.sh`. Compiler and SDK are resolved together using `xcrun`; advanced builds may set `APP_CLONE_SWIFTC` and `APP_CLONE_SDK` to a matching pair. No machine-specific paths are configured in the repository.
 
 ## Usage
 
@@ -92,7 +92,7 @@ Cloning changes the app's identity and signature. Some apps may refuse to run or
 ## Development
 
 ```sh
-./build.sh test
+make test
 ```
 
 The suite includes 40 CLI integration tests plus Swift process, localization, and symlink checks. Fixtures are created in temporary directories, including small signed apps, and cleaned up afterwards. GitHub Actions builds and tests on macOS and checks the release binary.
