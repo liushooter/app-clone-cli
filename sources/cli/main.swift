@@ -180,7 +180,7 @@ struct AppCloneCLI {
     }
     switch options.command {
     case "doctor":
-      let checks = ["/usr/bin/ditto", "/usr/bin/xattr", "/usr/bin/codesign", "/usr/bin/iconutil"]
+      let checks = ["/usr/bin/ditto", "/usr/bin/xattr", "/usr/bin/codesign"]
         .map { ToolCheck(path: $0, available: FileManager.default.isExecutableFile(atPath: $0)) }
       try output(checks)
       if checks.contains(where: { !$0.available }) {
