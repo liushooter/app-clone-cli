@@ -1,0 +1,21 @@
+# Generated files and development caches
+.DS_Store
+/build/
+/dist/
+.ruff_cache/
+__pycache__/
+*.pyc
+*.log
+
+# Local clone workspace (when --workspace points at the repository)
+/apps/
+/staging/
+/state.json
+/pending.json
+/workspace.lock
+
+# Local configuration and signing material
+.env
+.env.*
+*.p12
+*.mobileprovision
