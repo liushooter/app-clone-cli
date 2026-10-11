@@ -7,6 +7,8 @@ private struct Options {
   var positional: [String] = []
   var values: [String: String] = [:]
   var json = false
+  var reset = false
+  var showHelp = false
 
   init(_ arguments: [String]) throws {
     let first = arguments.first ?? "help"
@@ -17,6 +19,7 @@ private struct Options {
       "clone": (1, ["name", "icon"]), "icon": (2, []),
       "verify": (1, []), "remove": (1, []),
       "rename": (2, []),
+      "adv-clone": (1, ["data-dir", "proxy", "locale"]),
       "register": (0, []),
       "version": (0, []),
     ]
@@ -31,6 +34,10 @@ private struct Options {
         positionalOnly = true
       } else if argument == "--json", !positionalOnly {
         json = true
+      } else if argument == "--reset", command == "adv-clone", !positionalOnly, !reset {
+        reset = true
+      } else if argument == "--help", command == "adv-clone", !positionalOnly, !showHelp {
+        showHelp = true
       } else if argument.hasPrefix("--"), !positionalOnly {
         let key = String(argument.dropFirst(2))
         guard spec.1.contains(key) || key == "workspace", values[key] == nil,
@@ -45,7 +52,15 @@ private struct Options {
       }
       index += 1
     }
-    guard positional.count == spec.0, command != "clone" || values["name"] != nil else {
+    if command == "adv-clone" {
+      guard !reset || values.keys.allSatisfy({ $0 == "workspace" }) else {
+        throw CloneFailure("usage", L10n.text(.resetEnvironmentUsage))
+      }
+      if positional.isEmpty && values.isEmpty && !reset { showHelp = true }
+    }
+    guard positional.count == spec.0 || (showHelp && positional.count <= 1),
+      command != "clone" || values["name"] != nil
+    else {
       throw CloneFailure("usage", L10n.text(.incompleteArguments, command))
     }
   }
@@ -105,7 +120,9 @@ struct AppCloneCLI {
       } else {
         remaining.append(argument)
         index += 1
-        if ["--name", "--icon", "--workspace"].contains(argument), index < arguments.count {
+        if ["--name", "--icon", "--workspace", "--data-dir", "--proxy", "--locale"].contains(
+          argument), index < arguments.count
+        {
           remaining.append(arguments[index])
           index += 1
         }
@@ -120,6 +137,10 @@ struct AppCloneCLI {
       let options = try Options(arguments)
       if ["help", "--help"].contains(options.command) {
         print(CLIHelp.text)
+        return
+      }
+      if options.command == "adv-clone", options.showHelp {
+        print(CLIHelp.advClone)
         return
       }
       if options.command == "version" {
@@ -167,7 +188,7 @@ struct AppCloneCLI {
     let workspaceURL: URL
     if let path = options.values["workspace"] {
       workspaceURL = url(path)
-    } else if ["icon", "rename", "verify", "remove"].contains(options.command) {
+    } else if ["icon", "rename", "verify", "remove", "adv-clone"].contains(options.command) {
       workspaceURL = try CloneEngine.workspaceRoot(for: url(options.positional[0]))
     } else {
       workspaceURL = CloneEngine.defaultRoot
@@ -246,6 +267,25 @@ struct AppCloneCLI {
           token: token, onEvent: events)
       }
       try output(record)
+    case "adv-clone":
+      let record = try await background {
+        try engine.configureEnvironment(
+          app: url(options.positional[0]), dataDirectory: options.values["data-dir"].map(url),
+          proxy: options.values["proxy"], locale: options.values["locale"], reset: options.reset,
+          token: token, onEvent: events)
+      }
+      if options.json {
+        try output(record)
+      } else if let settings = record.environment {
+        print(L10n.text(.environmentEnabled))
+        if let directory = settings.dataDirectory {
+          print(L10n.text(.environmentDataLine, directory))
+        }
+        if let proxy = settings.proxy { print(L10n.text(.environmentProxyLine, proxy)) }
+        if let locale = settings.locale { print(L10n.text(.environmentLocaleLine, locale)) }
+      } else {
+        print(L10n.text(.environmentDisabled))
+      }
     case "verify":
       let record = try await background {
         try engine.verify(app: url(options.positional[0]), token: token)

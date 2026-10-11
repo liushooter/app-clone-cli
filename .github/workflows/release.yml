@@ -69,6 +69,8 @@ jobs:
             test "$(./app-clone --version)" = "$version"
             ./app-clone help --lang en
             ./app-clone help --lang zh
+            ./app-clone adv-clone --lang en
+            ./app-clone adv-clone --lang zh
             ./app-clone doctor
           )
           git diff --exit-code

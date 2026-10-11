@@ -113,6 +113,19 @@ public enum L10n {
     case errorLine
     case statisticsLine
     case invalidLanguage
+    case invalidProxy
+    case invalidLocale
+    case invalidDataDirectory
+    case environmentConflict
+    case environmentChanged
+    case unsupportedMachO
+    case resetEnvironmentUsage
+    case environmentProgress
+    case environmentDisabled
+    case environmentEnabled
+    case environmentDataLine
+    case environmentProxyLine
+    case environmentLocaleLine
   }
 
   public static func text(_ message: Message, _ arguments: String...) -> String {
@@ -127,6 +140,54 @@ public enum L10n {
   static func translation(_ message: Message, language: AppLanguage) -> String {
     let pair: (zh: String, en: String)
     switch message {
+    case .invalidProxy:
+      pair = (
+        "代理必须是有效的 HTTP/HTTPS 地址，可包含端口。",
+        "Proxy must be a valid HTTP/HTTPS URL, optionally with a port."
+      )
+    case .invalidLocale:
+      pair = (
+        "语言格式无效，例如 zh_CN.UTF-8 或 en_US.UTF-8。",
+        "Invalid locale; use a value such as zh_CN.UTF-8 or en_US.UTF-8."
+      )
+    case .invalidDataDirectory:
+      pair = (
+        "数据目录不能覆盖用户主目录、应用或工作空间；工作空间内请放到 data 的子目录。",
+        "Data directory must not overlap the user home, apps, or workspace; inside a workspace, use a child of data."
+      )
+    case .environmentConflict:
+      pair = (
+        "应用已包含非本工具管理的 libappclone_env.dylib，未覆盖。",
+        "The app already contains an unmanaged libappclone_env.dylib; it was not overwritten."
+      )
+    case .environmentChanged:
+      pair = (
+        "分身的环境动态库或加载依赖已发生变化。", "The clone's environment library or load dependency has changed."
+      )
+    case .unsupportedMachO:
+      pair = (
+        "无法安全修改主程序的动态库依赖：格式、加密状态或头部余量不受支持。",
+        "Cannot safely modify the executable's library dependency: unsupported format, encryption, or header space."
+      )
+    case .resetEnvironmentUsage:
+      pair = (
+        "--reset 不能和 --data-dir、--proxy、--locale 同时使用。",
+        "--reset cannot be combined with --data-dir, --proxy, or --locale."
+      )
+    case .environmentProgress:
+      pair = ("更新分身环境动态库和加载依赖", "Updating the clone environment library and load dependency")
+    case .environmentDisabled:
+      pair = ("未启用高级环境配置。", "Advanced environment configuration is disabled.")
+    case .environmentEnabled:
+      pair = (
+        "已启用高级环境配置，下次启动分身时生效。", "Advanced environment configuration is enabled for the next launch."
+      )
+    case .environmentDataLine:
+      pair = ("数据目录：{}（HOME=home，TMPDIR=tmp）", "Data directory: {} (HOME=home, TMPDIR=tmp)")
+    case .environmentProxyLine:
+      pair = ("HTTP/HTTPS 代理：{}", "HTTP/HTTPS proxy: {}")
+    case .environmentLocaleLine:
+      pair = ("应用语言环境：{}", "App locale: {}")
     case .linkOccupied:
       pair = ("应用入口已被占用，未覆盖：{}", "Application shortcut is occupied; nothing was overwritten: {}")
     case .cancelled:
@@ -329,8 +390,8 @@ public enum L10n {
       pair = ("当前工作空间没有管理此分身：{}", "This clone is not managed by the current workspace: {}")
     case .appRunning:
       pair = (
-        "请先退出该分身，再替换图标、改名或移除",
-        "Quit the clone before changing its icon, renaming it, or removing it."
+        "请先退出该分身，再修改图标、环境、名称或移除",
+        "Quit the clone before changing its icon, environment, or name, or removing it."
       )
     case .unknownCommand:
       pair = (
