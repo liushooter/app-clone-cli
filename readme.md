@@ -32,7 +32,14 @@ git push origin v0.1.0
 
 Tags may look like `v0.1.0` or `v0.2.0-rc.1`; the latter produces a prerelease. Publishing uses the built-in `GITHUB_TOKEN`, with no additional release secret required. Failed runs can be rerun in Actions; use a new version and tag for changes to an already published release.
 
-Download and extract the archive for your architecture. Place it beside the checksum file and run `shasum -a 256 --check --ignore-missing sha256sums.txt` to verify the downloaded archive.
+Choose the archive for your Mac's chip, then extract it to run the tool. For version `v0.1.0`:
+
+| Mac chip | Download |
+| --- | --- |
+| Apple Silicon (M series) | `app-clone-v0.1.0-macos-apple-silicon.tar.gz` |
+| Intel processor | `app-clone-v0.1.0-macos-intel.tar.gz` |
+
+You can find your chip or processor in the Apple menu → About This Mac. Place the archive beside the checksum file and run `shasum -a 256 --check --ignore-missing sha256sums.txt` to verify the downloaded archive.
 
 ## Usage
 

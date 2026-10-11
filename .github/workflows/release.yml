@@ -24,13 +24,16 @@ jobs:
         include:
           - runner: macos-15
             arch: arm64
+            chip: apple-silicon
           - runner: macos-15-intel
             arch: x86_64
+            chip: intel
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     env:
       RELEASE_TAG: ${{ github.ref_name }}
       RELEASE_ARCH: ${{ matrix.arch }}
+      RELEASE_CHIP: ${{ matrix.chip }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -56,7 +59,7 @@ jobs:
           fi
           test "$(lipo -archs build/app-clone)" = "$RELEASE_ARCH"
           mkdir -p dist
-          archive="app-clone-${RELEASE_TAG}-macos-${RELEASE_ARCH}.tar.gz"
+          archive="app-clone-${RELEASE_TAG}-macos-${RELEASE_CHIP}.tar.gz"
           COPYFILE_DISABLE=1 tar -czf "dist/$archive" -C build app-clone \
             -C "$GITHUB_WORKSPACE" readme.md readme.zh-cn.md
           extracted="$(mktemp -d)"
@@ -71,7 +74,7 @@ jobs:
           git diff --exit-code
       - uses: actions/upload-artifact@v7
         with:
-          name: release-${{ matrix.arch }}
+          name: release-${{ matrix.chip }}
           path: dist/*.tar.gz
           if-no-files-found: error
           retention-days: 7
@@ -93,8 +96,8 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          test -f "app-clone-${RELEASE_TAG}-macos-arm64.tar.gz"
-          test -f "app-clone-${RELEASE_TAG}-macos-x86_64.tar.gz"
+          test -f "app-clone-${RELEASE_TAG}-macos-apple-silicon.tar.gz"
+          test -f "app-clone-${RELEASE_TAG}-macos-intel.tar.gz"
           sha256sum ./*.tar.gz > sha256sums.txt
           sha256sum --check sha256sums.txt
       - name: Publish GitHub Release

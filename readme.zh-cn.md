@@ -32,7 +32,14 @@ git push origin v0.1.0
 
 tag 支持 `v0.1.0` 或 `v0.2.0-rc.1` 这样的格式，后者会标记为预发布。工作流使用内置 `GITHUB_TOKEN`，无需额外配置发布密钥；两个架构均成功后才会发布。失败后可在 Actions 中重新运行，已发布版本应使用新版本号和新 tag。
 
-下载对应架构的压缩包并解压即可运行。将校验文件与压缩包放在同一目录，可用 `shasum -a 256 --check --ignore-missing sha256sums.txt` 校验下载文件。
+按 Mac 的芯片类型选择压缩包，解压即可运行。以 `v0.1.0` 为例：
+
+| Mac 芯片 | 下载文件 |
+| --- | --- |
+| Apple 芯片（M 系列） | `app-clone-v0.1.0-macos-apple-silicon.tar.gz` |
+| Intel 处理器 | `app-clone-v0.1.0-macos-intel.tar.gz` |
+
+可在苹果菜单 →「关于本机」中查看芯片或处理器类型。将校验文件与压缩包放在同一目录，可用 `shasum -a 256 --check --ignore-missing sha256sums.txt` 校验下载文件。
 
 ## 使用
 
