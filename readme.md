@@ -22,22 +22,22 @@ The executable is `build/app-clone`. It works outside the source directory and d
 
 Pushing a `v*` tag triggers GitHub Actions to run the full suite and build optimized binaries on both Apple Silicon and Intel. Once both builds succeed, it creates a GitHub Release with two `.tar.gz` archives and `sha256sums.txt`. Each archive contains the executable and both readme files and requires macOS 14 or later.
 
-Update and commit the version in `sources/core/version.swift` before pushing the corresponding tag. The tag without its `v` prefix must exactly match the CLI version, or the release fails. For version `0.1.0`:
+Update and commit the version in `sources/core/version.swift` before pushing the corresponding tag. The tag without its `v` prefix must exactly match the CLI version, or the release fails. For version `0.2.0`:
 
 ```sh
 git push origin main
-git tag -a v0.1.0 -m "Release v0.1.0"
-git push origin v0.1.0
+git tag -a v0.2.0 -m "Release v0.2.0"
+git push origin v0.2.0
 ```
 
 Tags may look like `v0.1.0` or `v0.2.0-rc.1`; the latter produces a prerelease. Publishing uses the built-in `GITHUB_TOKEN`, with no additional release secret required. Failed runs can be rerun in Actions; use a new version and tag for changes to an already published release.
 
-Choose the archive for your Mac's chip, then extract it to run the tool. For version `v0.1.0`:
+Choose the archive for your Mac's chip, then extract it to run the tool. For version `v0.2.0`:
 
 | Mac chip | Download |
 | --- | --- |
-| Apple Silicon (M series) | `app-clone-v0.1.0-macos-apple-silicon.tar.gz` |
-| Intel processor | `app-clone-v0.1.0-macos-intel.tar.gz` |
+| Apple Silicon (M series) | `app-clone-v0.2.0-macos-apple-silicon.tar.gz` |
+| Intel processor | `app-clone-v0.2.0-macos-intel.tar.gz` |
 
 You can find your chip or processor in the Apple menu → About This Mac. Place the archive beside the checksum file and run `shasum -a 256 --check --ignore-missing sha256sums.txt` to verify the downloaded archive.
 

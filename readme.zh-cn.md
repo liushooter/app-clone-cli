@@ -22,22 +22,22 @@ make release
 
 推送 `v*` tag 后，GitHub Actions 会分别在 Apple Silicon 和 Intel 上运行完整测试、编译优化版本，再创建 GitHub Release，上传两个架构的 `.tar.gz` 包和 `sha256sums.txt`。压缩包包含可执行文件及中英文说明文档，要求 macOS 14+。
 
-发布前将 `sources/core/version.swift` 中的版本号更新并提交，然后推送对应 tag。tag 去掉 `v` 后必须与 CLI 版本完全一致，否则发布失败。例如，版本号为 `0.1.0` 时：
+发布前将 `sources/core/version.swift` 中的版本号更新并提交，然后推送对应 tag。tag 去掉 `v` 后必须与 CLI 版本完全一致，否则发布失败。例如，版本号为 `0.2.0` 时：
 
 ```sh
 git push origin main
-git tag -a v0.1.0 -m "发布 v0.1.0"
-git push origin v0.1.0
+git tag -a v0.2.0 -m "发布 v0.2.0"
+git push origin v0.2.0
 ```
 
 tag 支持 `v0.1.0` 或 `v0.2.0-rc.1` 这样的格式，后者会标记为预发布。工作流使用内置 `GITHUB_TOKEN`，无需额外配置发布密钥；两个架构均成功后才会发布。失败后可在 Actions 中重新运行，已发布版本应使用新版本号和新 tag。
 
-按 Mac 的芯片类型选择压缩包，解压即可运行。以 `v0.1.0` 为例：
+按 Mac 的芯片类型选择压缩包，解压即可运行。以 `v0.2.0` 为例：
 
 | Mac 芯片 | 下载文件 |
 | --- | --- |
-| Apple 芯片（M 系列） | `app-clone-v0.1.0-macos-apple-silicon.tar.gz` |
-| Intel 处理器 | `app-clone-v0.1.0-macos-intel.tar.gz` |
+| Apple 芯片（M 系列） | `app-clone-v0.2.0-macos-apple-silicon.tar.gz` |
+| Intel 处理器 | `app-clone-v0.2.0-macos-intel.tar.gz` |
 
 可在苹果菜单 →「关于本机」中查看芯片或处理器类型。将校验文件与压缩包放在同一目录，可用 `shasum -a 256 --check --ignore-missing sha256sums.txt` 校验下载文件。
 
