@@ -79,6 +79,7 @@ enum CLIHelp {
     list 显示分身名称及完整路径，副本位于工作空间的 apps 子目录。
 
     图标支持 PNG、JPEG、ICNS。替换图标会重新签名。
+    clone / create 不支持克隆系统应用；inspect 仍可查看其信息。
     rename 修改显示名称、应用包文件名和软链接，保留分身身份与图标。
     stats 按原应用统计当前工作空间的累计成功创建数和现存分身数；删除不复用序号。
     remove 只移除工具管理的应用副本，不删除应用用户数据。
@@ -114,6 +115,7 @@ enum CLIHelp {
     list shows clone names and full paths. Copies are stored in the workspace's apps subdirectory.
 
     Icons support PNG, JPEG, and ICNS. Changing an icon re-signs the clone.
+    clone / create do not support system apps; inspect can still display their information.
     rename changes the display name, bundle filename, and shortcut, preserving identity and icon.
     stats shows total creations and current clones per source app in this workspace; numbers are not reused.
     remove deletes only the managed app copy, preserving app user data.

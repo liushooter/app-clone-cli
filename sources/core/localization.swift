@@ -71,6 +71,7 @@ public enum L10n {
     case notApp
     case invalidBundle
     case notExecutable
+    case unsupportedSystemApp
     case clonePathRequired
     case workspaceNotManaged
     case inspectProgress
@@ -142,6 +143,8 @@ public enum L10n {
   static func translation(_ message: Message, language: AppLanguage) -> String {
     let pair: (zh: String, en: String)
     switch message {
+    case .unsupportedSystemApp:
+      pair = ("不支持克隆系统应用：{}", "Cloning system apps is not supported: {}")
     case .invalidProxy:
       pair = (
         "代理必须是有效的 HTTP/HTTPS 地址，可包含端口。",

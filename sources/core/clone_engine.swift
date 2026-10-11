@@ -77,6 +77,12 @@ public struct CloneEngine: Sendable {
     let name = try validatedName(name)
     onEvent(CloneEvent("inspect", L10n.text(.inspectProgress)))
     let descriptor = try AppInspector.inspect(source)
+    if try BundleFiles.isSystemApplication(
+      URL(fileURLWithPath: descriptor.path), executable: descriptor.executable)
+    {
+      throw CloneFailure(
+        "unsupported_system_app", L10n.text(.unsupportedSystemApp, descriptor.path))
+    }
     try validateSourceLocation(URL(fileURLWithPath: descriptor.path))
     let workspace = Workspace(root: root)
     return try workspace.withLock {

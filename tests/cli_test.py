@@ -686,6 +686,72 @@ int main(void) {
         self.assertFalse(self.root.exists())
         self.assertEqual(digest_tree(self.source), self.original)
 
+    def test_system_apps_are_rejected_before_creating_workspace(self):
+        sources = [
+            Path("/System/Applications/Maps.app"),
+            Path("/System/Library/CoreServices/Finder.app"),
+            Path("/Applications/Safari.app"),
+        ]
+        sources = [source for source in sources if source.exists()]
+        if not sources:
+            self.skipTest("No system application fixture available")
+        for source in sources:
+            alias = self.directory / f"{source.stem.lower()}-link.app"
+            alias.symlink_to(source)
+            inspected = self.cli("inspect", alias)
+            self.assertEqual(inspected["path"], str(source.resolve()))
+            for entry in (source, alias):
+                for command, language, phrase in [
+                    ("clone", "zh", "不支持克隆系统应用"),
+                    ("create", "en", "Cloning system apps is not supported"),
+                ]:
+                    with self.subTest(source=entry, command=command, language=language):
+                        args = [
+                            command,
+                            entry,
+                            "--name",
+                            "system-test",
+                            "--icon",
+                            self.directory / "missing.png",
+                            "--lang",
+                            language,
+                        ]
+                        error = self.cli(*args, success=False)
+                        self.assertEqual(error["code"], "unsupported_system_app")
+                        self.assertIn(phrase, error["message"])
+                        self.assertIn(str(source.resolve()), error["message"])
+                        result = self.localized_cli(*args, "--workspace", self.root)
+                        self.assertEqual(result.returncode, 1)
+                        self.assertEqual(result.stdout, "")
+                        self.assertIn(phrase, result.stderr)
+                        self.assertNotIn("[copy]", result.stderr)
+                        self.assertFalse(self.root.exists())
+
+    def test_system_app_rejection_preserves_existing_workspace(self):
+        source = Path("/System/Applications/Maps.app")
+        if not source.exists():
+            self.skipTest("Maps is not installed")
+        record = self.create(icon=False)
+        before = digest_tree(self.root)
+        error = self.cli("clone", source, "--name", "maps-test", success=False)
+        self.assertEqual(error["code"], "unsupported_system_app")
+        self.assertEqual(digest_tree(self.root), before)
+        self.assertEqual(self.cli("list"), [record])
+        self.assert_clean()
+
+    def test_apple_bundle_id_and_local_system_directory_can_be_cloned(self):
+        self.info["CFBundleIdentifier"] = "com.apple.fixture"
+        self.plist.write_bytes(plistlib.dumps(self.info))
+        original = digest_tree(self.source)
+        local = self.directory / "System/Applications/origin.app"
+        local.parent.mkdir(parents=True)
+        self.source.rename(local)
+        self.source = local
+        record = self.create(icon=False)
+        self.assertEqual(record["source"]["bundleID"], "com.apple.fixture")
+        self.assertEqual(digest_tree(self.source), original)
+        self.cli("verify", self.app(record))
+
     def test_create_icon_and_signatures(self):
         record = self.create()
         app = self.app(record)

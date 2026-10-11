@@ -145,6 +145,8 @@ Exit status: `0` for success, `1` for failure, `130` for cancellation. For scrip
 
 The core copies the source into staging, assigns the clone identity and name, applies an optional icon, clears extended attributes, signs the copy ad hoc, verifies it, and commits the app and catalog together. A workspace lock serializes operations; a journal enables recovery after interruption. Preparation failures clean up temporary files and preserve existing clones. The original app is not modified.
 
+`clone` / `create` do not support system apps such as Maps, Finder, and Safari. Before creating a workspace or copying files, the tool resolves symlinks and rejects apps whose real path is under `/System` or `/Library/Apple/System`, or whose bundle directory or main executable carries the `restricted` system-protection flag. The error is "Cloning system apps is not supported", with JSON code `unsupported_system_app`. `inspect` can still read system app metadata. A `com.apple.*` Bundle ID alone does not trigger rejection.
+
 Cloning changes the app's identity and signature. Some apps may refuse to run or may still share data through their own storage conventions. Separate login sessions and data isolation depend on the app. This tool does not migrate accounts or app data. It runs only while a command is active, with no background service or idle polling.
 
 ## Development
@@ -153,7 +155,7 @@ Cloning changes the app's identity and signature. Some apps may refuse to run or
 make test
 ```
 
-The suite includes 47 CLI integration tests plus Swift process, localization, symlink, and environment module checks. Fixtures include a signed universal app used to test injected environment variables, updates, reset, and failure preservation. GitHub Actions builds and tests on macOS and checks the release binary.
+The suite includes 50 CLI integration tests plus Swift process, localization, symlink, and environment module checks. Fixtures include a signed universal app used to test injected environment variables, updates, reset, and failure preservation. Tests also cover rejection of system apps and their symlink entries. GitHub Actions builds and tests on macOS and checks the release binary.
 
 ```text
 sources/cli/          Argument parsing, bilingual help, text and JSON output

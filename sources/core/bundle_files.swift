@@ -46,6 +46,24 @@ enum BundleFiles {
     }
   }
 
+  static func isSystemApplication(_ app: URL, executable: String) throws -> Bool {
+    let app = canonical(app)
+    // Resolve links first, including Safari's entry in /Applications and Cryptex paths.
+    let systemRoots = ["/System", "/Library/Apple/System"].map { URL(fileURLWithPath: $0) }
+    if systemRoots.contains(where: { app == $0 || isWithin(app, $0) }) { return true }
+
+    // Protected apps can also live outside the standard system directories.
+    for item in [app, app.appendingPathComponent("Contents/MacOS/" + executable)] {
+      var information = stat()
+      guard lstat(item.path, &information) == 0 else {
+        throw NSError(
+          domain: NSPOSIXErrorDomain, code: Int(errno), userInfo: [NSFilePathErrorKey: item.path])
+      }
+      if information.st_flags & UInt32(SF_RESTRICTED) != 0 { return true }
+    }
+    return false
+  }
+
   static func plistURL(_ app: URL) -> URL {
     app.appendingPathComponent("Contents/Info.plist")
   }
