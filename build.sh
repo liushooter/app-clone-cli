@@ -33,7 +33,7 @@ fi
 # Resolve both tools from the selected Apple developer directory to avoid mixing SDKs.
 sdk="${APP_CLONE_SDK:-$(xcrun --sdk macosx --show-sdk-path)}"
 
-# This opt-in module build uses the fixed example configuration in env.c.
+# This opt-in module build keeps only the empty initializer in env.c.
 # It is not injected into the CLI or included in release archives.
 if [[ "$mode" == env-dylib ]]; then
   env_compiler="$(xcrun --find clang)"
@@ -45,7 +45,7 @@ if [[ "$mode" == env-dylib ]]; then
   /usr/bin/codesign --force --sign - build/libappclone_env.dylib
   /usr/bin/codesign --verify --strict build/libappclone_env.dylib
   xcrun lipo build/libappclone_env.dylib -verify_arch arm64 x86_64
-  printf 'Built %s/build/libappclone_env.dylib (example configuration)\n' "$PWD"
+  printf 'Built %s/build/libappclone_env.dylib (empty initializer)\n' "$PWD"
   exit 0
 fi
 

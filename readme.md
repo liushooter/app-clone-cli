@@ -93,7 +93,7 @@ Create a clone with `clone` first, then configure that managed copy:
 
 Options can be used separately; omitted settings are preserved. `--data-dir` creates `home` and `tmp` subdirectories and sets `HOME` and `TMPDIR`. `--proxy` sets `HTTP_PROXY` and `HTTPS_PROXY`; only HTTP/HTTPS proxy URLs are supported. `--locale` sets `LANG` and `LC_ALL`, while `--lang` controls the CLI's own output. `--json` returns the clone record, including `environment` when enabled.
 
-Setting configuration requires Apple Command Line Tools or Xcode. The command generates and compiles a universal `libappclone_env.dylib` for that configuration, adds a dependency to the main executable, and signs and verifies the staged copy before installing it. It uses the existing transaction recovery flow; failures preserve the installed clone and catalog. There is no need to run `make env-dylib` or inject the example library yourself.
+Setting configuration requires Apple Command Line Tools or Xcode. The command generates and compiles a universal `libappclone_env.dylib` for that configuration, adds a dependency to the main executable, and signs and verifies the staged copy before installing it. It uses the existing transaction recovery flow; failures preserve the installed clone and catalog. There is no need to run `make env-dylib` or inject the library yourself.
 
 Settings apply on the next launch. User data is not migrated or deleted, including after `--reset` or `remove`. Applications decide whether to honor these environment variables; this does not isolate keychain entries, hard-coded paths, or every helper process. Unsupported, encrypted, or insufficiently padded executables are rejected. Reset removes the module's dependency only when it remains the last library dependency, preserving existing library ordinals.
 
@@ -153,6 +153,6 @@ modules/appclone-env/  C source generator and Mach-O helpers used by adv-clone
 tests/                Integration tests and Swift checks
 ```
 
-`make env-dylib` builds `build/libappclone_env.dylib` with the module's fixed example configuration for development only. The `adv-clone` command generates a separate library from the selected settings. See the [environment module guide](modules/appclone-env/readme.md) for its API and naming.
+`make env-dylib` builds `build/libappclone_env.dylib` with an empty initializer that leaves environment variables unchanged. The `adv-clone` command generates a separate library from the selected settings. See the [environment module guide](modules/appclone-env/readme.md) for its API and naming.
 
 Keep source filenames lowercase. Format Swift with `swift-format` and Python with `ruff format`; run the full suite before submitting a change. Generated binaries, workspace data, local configuration, and credentials do not belong in Git.

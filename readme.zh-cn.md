@@ -90,7 +90,7 @@ tag 支持 `v0.1.0` 或 `v0.2.0-rc.1` 这样的格式，后者会标记为预发
 
 三个选项可单独使用，只修改传入的项，保留其他配置。`--data-dir` 创建 `home`、`tmp` 子目录并设置分身的 HOME、TMPDIR；`--proxy` 设置 HTTP_PROXY、HTTPS_PROXY，仅支持 HTTP/HTTPS 地址；`--locale` 设置 LANG、LC_ALL，而 `--lang` 控制 CLI 输出语言。加 `--json` 返回分身记录，启用后包含 `environment` 字段。
 
-设置时需要 Apple Command Line Tools 或 Xcode。命令按配置生成并编译双架构 `libappclone_env.dylib`，在暂存副本中添加主程序依赖、签名和验证，再通过事务安装。准备失败保留原分身和清单，不需要手动执行 `make env-dylib` 或注入示例库。
+设置时需要 Apple Command Line Tools 或 Xcode。命令按配置生成并编译双架构 `libappclone_env.dylib`，在暂存副本中添加主程序依赖、签名和验证，再通过事务安装。准备失败保留原分身和清单，不需要手动执行 `make env-dylib` 或注入动态库。
 
 配置在下次启动生效，不自动迁移用户数据；`--reset` 和 `remove` 都保留数据目录。应用是否采用这些环境变量取决于其实现，钥匙串、硬编码路径及所有辅助进程并不因此自动隔离。不支持的格式、加密或头部余量不足会被拒绝。重置要求本模块仍为最后一个动态库依赖，以保留其他库的序号。
 
@@ -142,6 +142,6 @@ make test
 - `modules/appclone-env/`：`adv-clone` 使用的 C 源码生成器和 Mach-O 辅助代码。
 - `tests/`：集成测试和 Swift 检查。
 
-`make env-dylib` 使用模块中的固定示例配置构建 `build/libappclone_env.dylib`，仅用于开发验证。`adv-clone` 根据实际选项另行生成动态库。接口和命名见[环境模块说明](modules/appclone-env/readme.md)。
+`make env-dylib` 构建只保留空初始化入口的 `build/libappclone_env.dylib`，加载时不修改环境变量。`adv-clone` 根据实际选项另行生成动态库。接口和命名见[环境模块说明](modules/appclone-env/readme.md)。
 
 源文件名使用小写；Swift 用 `swift-format` 格式化，Python 用 `ruff format` 格式化。提交前运行完整测试，不提交构建产物、工作空间数据、密钥和本地配置。
