@@ -182,7 +182,13 @@ struct AppCloneCLI {
     case "doctor":
       let checks = ["/usr/bin/ditto", "/usr/bin/xattr", "/usr/bin/codesign"]
         .map { ToolCheck(path: $0, available: FileManager.default.isExecutableFile(atPath: $0)) }
-      try output(checks)
+      if options.json {
+        try output(checks)
+      } else {
+        for check in checks {
+          print(L10n.text(check.available ? .toolAvailableLine : .toolUnavailableLine, check.path))
+        }
+      }
       if checks.contains(where: { !$0.available }) {
         throw CloneFailure("missing_tools", L10n.text(.missingTools))
       }

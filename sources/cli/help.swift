@@ -8,7 +8,7 @@ enum CLIHelp {
 
     用法：
       app-clone version
-      app-clone doctor
+      app-clone doctor [--json]
       app-clone inspect <来源.app>
       app-clone clone <来源.app> --name <显示名称> [--icon <图片>]
       app-clone create（clone 的别名）
@@ -22,6 +22,7 @@ enum CLIHelp {
 
     --lang zh|en 指定语言，默认跟随终端或系统语言。
     --json 输出结构化结果。
+    doctor 默认以文本显示工具状态和路径。
     --workspace <目录> 指定工作空间，分身、清单和统计独立存放。
     分身.app 可直接从 Finder 拖入，支持软链接；按路径操作时自动定位工作空间。
     默认副本目录：~/Library/Application Support/app-clone/apps。
@@ -40,7 +41,7 @@ enum CLIHelp {
 
     Usage:
       app-clone version
-      app-clone doctor
+      app-clone doctor [--json]
       app-clone inspect <source.app>
       app-clone clone <source.app> --name <display-name> [--icon <image>]
       app-clone create (alias for clone)
@@ -54,6 +55,7 @@ enum CLIHelp {
 
     --lang zh|en selects the language; defaults to the terminal or system language.
     --json prints structured results.
+    doctor shows tool status and paths as text by default.
     --workspace <directory> selects a workspace with its own clones, catalog, and statistics.
     Drag clone.app from Finder; symlinks are supported. Path commands locate the workspace automatically.
     Default clone directory: ~/Library/Application Support/app-clone/apps.

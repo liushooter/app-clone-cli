@@ -95,6 +95,8 @@ New Bundle IDs use `<source-bundle-id>.<creation-number>.<uuid>`. Numbers increa
 
 Language priority: `--lang zh|en`, then nonempty `LC_ALL`, `LC_MESSAGES`, `LANG`, then the macOS preferred language. Chinese locales use Simplified Chinese; unsupported languages and `C` / `POSIX` use English. `--lang` may precede or follow the command; `--` ends option parsing.
 
+`doctor` shows each tool's status and path as text by default. Use `doctor --json` for structured check results in scripts.
+
 Successful structured results go to stdout; progress and errors go to stderr. `--json` suppresses progress and formats errors as `{"code": "...", "message": "..."}`. JSON keys, error codes, and stage identifiers stay stable across languages. Human-readable error messages are localized; application metadata and external tool diagnostics retain their original text.
 
 Exit status: `0` for success, `1` for failure, `130` for cancellation. For scripts, check the exit status and `code`, not translated messages.

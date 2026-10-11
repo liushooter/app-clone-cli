@@ -100,6 +100,8 @@ public enum L10n {
     case invalidOption
     case incompleteArguments
     case missingTools
+    case toolAvailableLine
+    case toolUnavailableLine
     case emptyList
     case emptyStats
     case originalIcon
@@ -360,6 +362,10 @@ public enum L10n {
         "部分分身注册失败，应用已保留，可重试。",
         "Some clones could not be registered. The apps were preserved; you can retry."
       )
+    case .toolAvailableLine:
+      pair = ("[可用] {}", "[OK] {}")
+    case .toolUnavailableLine:
+      pair = ("[不可用] {}", "[UNAVAILABLE] {}")
     case .invalidDirectoryPath:
       pair = ("路径必须是真实目录，不能是符号链接：{}", "The path must be a real directory, not a symlink: {}")
     case .invalidFilePath:
