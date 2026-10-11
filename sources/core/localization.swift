@@ -105,6 +105,7 @@ public enum L10n {
     case toolUnavailableLine
     case emptyList
     case emptyStats
+    case openedLocation
     case originalIcon
     case customIcon
     case incompleteHistory
@@ -145,6 +146,8 @@ public enum L10n {
     switch message {
     case .unsupportedSystemApp:
       pair = ("不支持克隆系统应用：{}", "Cloning system apps is not supported: {}")
+    case .openedLocation:
+      pair = ("已在 Finder 中打开位置：{}", "Opened location in Finder: {}")
     case .invalidProxy:
       pair = (
         "代理必须是有效的 HTTP/HTTPS 地址，可包含端口。",

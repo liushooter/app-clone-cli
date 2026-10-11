@@ -60,6 +60,7 @@ enum CLIHelp {
       app-clone clone <来源.app> --name <显示名称> [--icon <图片>]
       app-clone create（clone 的别名）
       app-clone list
+      app-clone open [分身.app]
       app-clone stats
       app-clone icon <分身.app> <图片>
       app-clone rename <分身.app> <新名称>
@@ -75,8 +76,9 @@ enum CLIHelp {
     分身.app 可直接从 Finder 拖入，支持软链接；按路径操作时自动定位工作空间。
     默认副本目录：~/Library/Application Support/app-clone/apps。
     ~/Applications/app-clone 只放符号链接；register 可重建链接并向系统注册。
-    clone、list、stats、register 未指定 --workspace 时使用默认工作空间。
+    clone、list、stats、register 和不带路径的 open 未指定 --workspace 时使用默认工作空间。
     list 显示分身名称及完整路径，副本位于工作空间的 apps 子目录。
+    open 在 Finder 中打开分身目录；传入分身路径时选中真实应用副本，不启动应用。
 
     图标支持 PNG、JPEG、ICNS。替换图标会重新签名。
     clone / create 不支持克隆系统应用；inspect 仍可查看其信息。
@@ -96,6 +98,7 @@ enum CLIHelp {
       app-clone clone <source.app> --name <display-name> [--icon <image>]
       app-clone create (alias for clone)
       app-clone list
+      app-clone open [clone.app]
       app-clone stats
       app-clone icon <clone.app> <image>
       app-clone rename <clone.app> <new-name>
@@ -111,8 +114,9 @@ enum CLIHelp {
     Drag clone.app from Finder; symlinks are supported. Path commands locate the workspace automatically.
     Default clone directory: ~/Library/Application Support/app-clone/apps.
     ~/Applications/app-clone holds symlinks only; register rebuilds and registers them with macOS.
-    clone, list, stats, and register use the default workspace unless --workspace is specified.
+    clone, list, stats, register, and open without a path use the default workspace unless --workspace is specified.
     list shows clone names and full paths. Copies are stored in the workspace's apps subdirectory.
+    open opens the clones directory in Finder; with a clone path, it reveals the actual app copy without launching it.
 
     Icons support PNG, JPEG, and ICNS. Changing an icon re-signs the clone.
     clone / create do not support system apps; inspect can still display their information.

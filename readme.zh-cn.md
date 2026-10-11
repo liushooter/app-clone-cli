@@ -47,6 +47,8 @@ tag 支持 `v0.1.0` 或 `v0.2.0-rc.1` 这样的格式，后者会标记为预发
 ./build/app-clone inspect /Applications/WeChat.app
 ./build/app-clone clone /Applications/WeChat.app --name 微信工作
 ./build/app-clone list
+./build/app-clone open
+./build/app-clone open ~/Applications/app-clone/微信工作.app
 ./build/app-clone icon ~/Applications/app-clone/微信工作.app ~/Pictures/work.png
 ./build/app-clone rename ~/Applications/app-clone/微信工作.app 微信2
 ./build/app-clone verify ~/Applications/app-clone/微信2.app
@@ -59,6 +61,7 @@ tag 支持 `v0.1.0` 或 `v0.2.0-rc.1` 这样的格式，后者会标记为预发
 | `clone <来源.app> --name <名称> [--icon <图片>]` | 创建分身，`create` 为同义命令 |
 | `inspect <应用.app>` | 查看 Bundle ID、版本等元数据 |
 | `list` | 列出分身名称和完整路径 |
+| `open [分身.app]` | 在 Finder 打开分身目录，或选中指定分身的真实应用副本 |
 | `icon <分身.app> <图片>` | 使用 PNG、JPEG 或 ICNS 替换图标 |
 | `rename <分身.app> <名称>` | 修改显示名称、应用包文件名和已有软链接 |
 | `adv-clone <分身.app> [--data-dir <目录>] [--proxy <地址>] [--locale <语言>] [--app-language <语言标识>]` | 查看或更新环境配置，`--reset` 移除配置 |
@@ -71,6 +74,8 @@ tag 支持 `v0.1.0` 或 `v0.2.0-rc.1` 这样的格式，后者会标记为预发
 | `help` / `--help` | 查看帮助 |
 
 分身路径可从 Finder 拖入终端，也支持软链接。换图标、改环境、改名和移除前需退出对应分身。换图标和改名保留当前应用版本、分身身份及环境配置；不提供应用更新命令。
+
+`open` 不带路径时打开工作空间的 `apps` 目录，不存在时会创建。传入分身路径或软链接时，在 Finder 中选中真实副本，不启动应用。`--workspace` 指定其他工作空间；`--json` 仍会打开 Finder，并返回 `{"path": "<实际位置>"}`。
 
 ## 高级环境配置
 
@@ -115,7 +120,7 @@ tag 支持 `v0.1.0` 或 `v0.2.0-rc.1` 这样的格式，后者会标记为预发
 
 `~/Applications/app-clone/` 只存放指向副本的软链接，不搬运应用包。Finder、Spotlight 和启动台的实际显示由 macOS 控制，同名的无关文件和其他链接不会被覆盖。
 
-`--workspace <目录>` 指定独立工作空间。clone、list、stats、register 默认使用上述目录；icon、rename、adv-clone、verify、remove 根据分身路径自动定位工作空间，也允许显式指定匹配的工作空间。自定义工作空间默认不创建应用入口，需要时运行 `register --workspace <目录>`。
+`--workspace <目录>` 指定独立工作空间。clone、list、stats、register 和不带路径的 open 默认使用上述目录；icon、rename、adv-clone、verify、remove 和带分身路径的 open 根据路径自动定位工作空间，也允许显式指定匹配的工作空间。自定义工作空间默认不创建应用入口，需要时运行 `register --workspace <目录>`。
 
 不自动迁移此前存放在其他位置的应用。新分身 Bundle ID 为 `<原应用BundleID>.<创建序号>.<uuid>`，成功创建后递增，删除不复用。兼容读取旧版清单；历史不完整时通过 `historyComplete: false` 标识。
 
@@ -146,7 +151,7 @@ tag 支持 `v0.1.0` 或 `v0.2.0-rc.1` 这样的格式，后者会标记为预发
 make test
 ```
 
-包含 50 项 CLI 集成测试，以及 Swift 进程、国际化、链接和环境模块检查。测试使用临时目录中的双架构应用验证实际环境注入、更新、重置和失败保护，并验证系统应用及其软链接入口的克隆拦截。macOS CI 执行测试和发布构建检查。
+包含 51 项 CLI 集成测试，以及 Swift 进程、国际化、定位、链接和环境模块检查。测试使用临时目录中的双架构应用验证实际环境注入、更新、重置和失败保护，并验证系统应用及其软链接入口的克隆拦截。macOS CI 执行测试和发布构建检查。
 
 - `sources/cli/`：命令参数、中英帮助和输出。
 - `sources/core/`：分身操作、事务、签名、图标和国际化。

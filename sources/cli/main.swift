@@ -16,6 +16,7 @@ private struct Options {
     if command == "--help" || command == "help" { return }
     let specs: [String: (Int, Set<String>)] = [
       "doctor": (0, []), "inspect": (1, []), "list": (0, []), "stats": (0, []),
+      "open": (1, []),
       "clone": (1, ["name", "icon"]), "icon": (2, []),
       "verify": (1, []), "remove": (1, []),
       "rename": (2, []),
@@ -58,7 +59,9 @@ private struct Options {
       }
       if positional.isEmpty && values.isEmpty && !reset { showHelp = true }
     }
-    guard positional.count == spec.0 || (showHelp && positional.count <= 1),
+    guard
+      positional.count == spec.0 || (command == "open" && positional.isEmpty)
+        || (showHelp && positional.count <= 1),
       command != "clone" || values["name"] != nil
     else {
       throw CloneFailure("usage", L10n.text(.incompleteArguments, command))
@@ -190,8 +193,10 @@ struct AppCloneCLI {
     let workspaceURL: URL
     if let path = options.values["workspace"] {
       workspaceURL = url(path)
-    } else if ["icon", "rename", "verify", "remove", "adv-clone"].contains(options.command) {
-      workspaceURL = try CloneEngine.workspaceRoot(for: url(options.positional[0]))
+    } else if ["icon", "rename", "verify", "remove", "adv-clone", "open"].contains(options.command),
+      let path = options.positional.first
+    {
+      workspaceURL = try CloneEngine.workspaceRoot(for: url(path))
     } else {
       workspaceURL = CloneEngine.defaultRoot
     }
@@ -203,7 +208,7 @@ struct AppCloneCLI {
     }
     switch options.command {
     case "doctor":
-      let checks = ["/usr/bin/ditto", "/usr/bin/xattr", "/usr/bin/codesign"]
+      let checks = ["/usr/bin/ditto", "/usr/bin/xattr", "/usr/bin/codesign", "/usr/bin/open"]
         .map { ToolCheck(path: $0, available: FileManager.default.isExecutableFile(atPath: $0)) }
       if options.json {
         try output(checks)
@@ -218,6 +223,19 @@ struct AppCloneCLI {
     case "inspect":
       let descriptor = try await background { try AppInspector.inspect(url(options.positional[0])) }
       try output(descriptor)
+    case "open":
+      let application = options.positional.first.map(url)
+      let location = try await background {
+        let location = try engine.location(of: application, token: token)
+        _ = try ProcessRunner().run(
+          "/usr/bin/open", (application == nil ? [] : ["-R"]) + [location.path], token: token)
+        return location
+      }
+      if options.json {
+        try output(["path": location.path])
+      } else {
+        print(L10n.text(.openedLocation, location.path))
+      }
     case "list":
       let records = try await background { try engine.list() }
       if options.json {

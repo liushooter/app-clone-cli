@@ -54,6 +54,21 @@ public struct CloneEngine: Sendable {
     return try workspace.withLock { try workspace.readCatalog().clones }
   }
 
+  /// Resolve the actual clone bundle, or the workspace's apps directory when no clone is given.
+  public func location(of application: URL? = nil, token: CancellationToken = CancellationToken())
+    throws -> URL
+  {
+    try token.check()
+    let workspace = Workspace(root: root)
+    return try workspace.withLock {
+      guard let application else { return workspace.apps }
+      let record = try find(application, in: workspace.readCatalog())
+      let app = try workspace.appURL(record)
+      try BundleFiles.checkOwnership(app, record: record)
+      return BundleFiles.canonical(app)
+    }
+  }
+
   public func statistics() throws -> [CloneStatistics] {
     let workspace = Workspace(root: root)
     return try workspace.withLock {

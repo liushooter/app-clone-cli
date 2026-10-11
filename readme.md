@@ -50,6 +50,8 @@ You can find your chip or processor in the Apple menu → About This Mac. Place 
 
 # List full paths, then manage a clone by its path (Finder drag-and-drop works).
 ./build/app-clone list
+./build/app-clone open
+./build/app-clone open ~/Applications/app-clone/wechat-work.app
 ./build/app-clone icon ~/Applications/app-clone/wechat-work.app ~/Pictures/work.png
 ./build/app-clone rename ~/Applications/app-clone/wechat-work.app wechat-personal
 ./build/app-clone verify ~/Applications/app-clone/wechat-personal.app
@@ -62,6 +64,7 @@ You can find your chip or processor in the Apple menu → About This Mac. Place 
 | `clone <source.app> --name <name> [--icon <image>]` | Create a clone; `create` is an alias |
 | `inspect <app>` | Read bundle metadata |
 | `list` | List managed clones and their full paths |
+| `open [clone.app]` | Open the clones directory in Finder, or reveal a specific clone's actual bundle |
 | `icon <clone.app> <image>` | Replace the icon using PNG, JPEG, or ICNS |
 | `rename <clone.app> <name>` | Change the display name, bundle filename, and existing shortcut |
 | `adv-clone <clone.app> [--data-dir <dir>] [--proxy <url>] [--locale <locale>] [--app-language <tag>]` | View or update a managed clone's environment; `--reset` removes the configuration |
@@ -74,6 +77,8 @@ You can find your chip or processor in the Apple menu → About This Mac. Place 
 | `help` / `--help` | Show usage |
 
 Quit a clone before changing its icon, environment, or name, or removing it. Rename and icon replacement preserve the installed app version, clone identity, and environment configuration. There is no app update command.
+
+`open` without a path opens the workspace's `apps` directory, creating it if necessary. With a clone path or symlink, it selects the actual app bundle in Finder without launching the app. `--workspace` selects a custom workspace; `--json` still opens Finder and returns `{"path": "<actual location>"}`.
 
 ## Advanced environment settings
 
@@ -120,7 +125,7 @@ pending.json  Recovery journal, present only during a transaction
 
 `~/Applications/app-clone/` contains symlinks to the copies. App bundles stay in the workspace. macOS controls their appearance in Finder, Spotlight, and Launchpad. Existing unrelated files and shortcuts are never overwritten.
 
-`--workspace <directory>` selects a separate workspace. `clone`, `list`, `stats`, and `register` otherwise use the default workspace. `icon`, `rename`, `adv-clone`, `verify`, and `remove` locate the workspace from the clone path, including symlinks. An explicit workspace must match the managed clone.
+`--workspace <directory>` selects a separate workspace. `clone`, `list`, `stats`, `register`, and `open` without a path otherwise use the default workspace. `icon`, `rename`, `adv-clone`, `verify`, `remove`, and `open` with a clone path locate the workspace from that path, including symlinks. An explicit workspace must match the managed clone.
 
 Custom workspaces do not automatically publish application shortcuts. Run `register --workspace <directory>` to create them. Existing applications in other locations are not automatically moved or migrated.
 
@@ -155,7 +160,7 @@ Cloning changes the app's identity and signature. Some apps may refuse to run or
 make test
 ```
 
-The suite includes 50 CLI integration tests plus Swift process, localization, symlink, and environment module checks. Fixtures include a signed universal app used to test injected environment variables, updates, reset, and failure preservation. Tests also cover rejection of system apps and their symlink entries. GitHub Actions builds and tests on macOS and checks the release binary.
+The suite includes 51 CLI integration tests plus Swift process, localization, location, symlink, and environment module checks. Fixtures include a signed universal app used to test injected environment variables, updates, reset, and failure preservation. Tests also cover rejection of system apps and their symlink entries. GitHub Actions builds and tests on macOS and checks the release binary.
 
 ```text
 sources/cli/          Argument parsing, bilingual help, text and JSON output

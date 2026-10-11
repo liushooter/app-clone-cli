@@ -10,6 +10,7 @@ private func require(_ condition: Bool, _ message: String) throws {
 struct CoreChecks {
   static func main() throws {
     try checkLocalization()
+    try checkLocations()
     let runner = ProcessRunner()
     let cancelled = CancellationToken()
     cancelled.cancel()
@@ -93,5 +94,61 @@ struct CoreChecks {
       }
     }
     print("Swift 国际化检查通过：语言选择、翻译完整性、参数、取消和超时。")
+  }
+
+  private static func checkLocations() throws {
+    let fm = FileManager.default
+    let root = fm.temporaryDirectory.appendingPathComponent(
+      "app-clone-location-" + UUID().uuidString.lowercased())
+    try fm.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? fm.removeItem(at: root) }
+    let source = root.appendingPathComponent("origin.app")
+    let executable = source.appendingPathComponent("Contents/MacOS/fixture")
+    try fm.createDirectory(
+      at: executable.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try fm.copyItem(atPath: "/usr/bin/true", toPath: executable.path)
+    try BundleFiles.writePlist(
+      [
+        "CFBundleIdentifier": "local.app-clone.location-fixture",
+        "CFBundleExecutable": "fixture",
+        "CFBundlePackageType": "APPL",
+      ], to: BundleFiles.plistURL(source))
+    let engine = CloneEngine(root: root.appendingPathComponent("workspace"))
+    let directory = try engine.location()
+    try require(directory == engine.root.appendingPathComponent("apps"), "空工作空间应返回分身目录。")
+    try BundleFiles.requireRegular(directory, directory: true)
+    let record = try engine.create(source: source, name: "location test")
+    let app = directory.appendingPathComponent(record.appFileName!)
+    let link = root.appendingPathComponent("shortcut.app")
+    try fm.createSymbolicLink(at: link, withDestinationURL: app)
+    let catalogURL = engine.root.appendingPathComponent("state.json")
+    let catalog = try Data(contentsOf: catalogURL)
+    for path in [app, link] {
+      let location = try engine.location(of: path)
+      try require(location == app, "定位必须返回真实分身位置。")
+      let inferred = try CloneEngine.workspaceRoot(for: path)
+      try require(inferred.path == engine.root.path, "分身和软链接应定位到同一工作空间。")
+    }
+    let unchanged = try Data(contentsOf: catalogURL)
+    try require(unchanged == catalog, "定位不能修改分身清单。")
+    let other = CloneEngine(root: root.appendingPathComponent("other-workspace"))
+    for (selected, path) in [(engine, source), (other, app)] {
+      do {
+        _ = try selected.location(of: path)
+        throw CloneFailure("test_failed", "定位必须拒绝原应用和不匹配的工作空间。")
+      } catch let error as CloneFailure {
+        try require(error.code == "not_managed", "非受管理位置应返回 not_managed。")
+      }
+    }
+    var plist = try BundleFiles.readPlist(BundleFiles.plistURL(app))
+    plist[BundleFiles.ownershipKey] = "mismatch"
+    try BundleFiles.writePlist(plist, to: BundleFiles.plistURL(app))
+    do {
+      _ = try engine.location(of: link)
+      throw CloneFailure("test_failed", "定位必须检查分身归属。")
+    } catch let error as CloneFailure {
+      try require(error.code == "ownership_mismatch", "归属不匹配应返回 ownership_mismatch。")
+    }
+    print("Swift 定位检查通过：空目录、分身路径、软链接、工作空间推断和归属校验。")
   }
 }

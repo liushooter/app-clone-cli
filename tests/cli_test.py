@@ -661,22 +661,43 @@ int main(void) {
         self.root = self.directory / "another-workspace"
         self.create(icon=False)
         before = digest_tree(self.directory)
-        error = self.cli("remove", app, success=False)
-        self.assertEqual(error["code"], "not_managed")
+        for command in ["remove", "open"]:
+            error = self.cli(command, app, success=False)
+            self.assertEqual(error["code"], "not_managed")
         self.assertEqual(digest_tree(self.directory), before)
         self.root = original_workspace
-        error = self.cli("remove", self.source, success=False, workspace=False)
-        self.assertEqual(error["code"], "not_managed")
+        for command in ["remove", "open"]:
+            error = self.cli(command, self.source, success=False, workspace=False)
+            self.assertEqual(error["code"], "not_managed")
         unknown = self.root / "apps/unmanaged.app"
         shutil.copytree(self.source, unknown)
         unknown_content = digest_tree(unknown)
-        error = self.cli("remove", unknown, success=False, workspace=False)
-        self.assertEqual(error["code"], "not_managed")
+        for command in ["remove", "open"]:
+            error = self.cli(command, unknown, success=False, workspace=False)
+            self.assertEqual(error["code"], "not_managed")
         self.assertEqual(digest_tree(unknown), unknown_content)
         self.assertTrue(app.exists())
         self.assertEqual(digest_tree(self.source), self.original)
         self.cli("verify", app, workspace=False)
         self.assert_clean()
+
+    def test_open_argument_validation_and_help(self):
+        for args in [("one.app", "two.app"), ("--name", "test")]:
+            error = self.cli("open", *args, success=False)
+            self.assertEqual(error["code"], "usage")
+        self.assertFalse(self.root.exists())
+        for language, usage, description in [
+            ("zh", "app-clone open [分身.app]", "open 在 Finder 中打开分身目录"),
+            (
+                "en",
+                "app-clone open [clone.app]",
+                "open opens the clones directory in Finder",
+            ),
+        ]:
+            result = self.localized_cli("help", "--lang", language)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(usage, result.stdout)
+            self.assertIn(description, result.stdout)
 
     def test_doctor_and_read_only_inspection(self):
         tools = self.cli("doctor")
