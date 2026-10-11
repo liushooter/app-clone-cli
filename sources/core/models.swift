@@ -33,6 +33,7 @@ public struct CloneRecord: Codable, Sendable {
   public var modifiedAt: Date
   public var customIconSHA256: String?
   public let compatibility: String
+  public var environment: CloneEnvironment? = nil
 }
 
 public struct CloneStatistics: Encodable, Sendable {

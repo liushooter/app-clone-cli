@@ -36,8 +36,8 @@ tag 支持 `v0.1.0` 或 `v0.2.0-rc.1` 这样的格式，后者会标记为预发
 
 | Mac 芯片 | 下载文件 |
 | --- | --- |
-| Apple 芯片（M 系列） | `app-clone-v0.1.0-macos-apple-silicon.tar.gz` |
-| Intel 处理器 | `app-clone-v0.1.0-macos-intel.tar.gz` |
+| Apple 芯片（M 系列） | `app-clone-v0.2.0-macos-apple-silicon.tar.gz` |
+| Intel 处理器 | `app-clone-v0.2.0-macos-intel.tar.gz` |
 
 可在苹果菜单 →「关于本机」中查看芯片或处理器类型。将校验文件与压缩包放在同一目录，可用 `shasum -a 256 --check --ignore-missing sha256sums.txt` 校验下载文件。
 
@@ -61,7 +61,8 @@ tag 支持 `v0.1.0` 或 `v0.2.0-rc.1` 这样的格式，后者会标记为预发
 | `list` | 列出分身名称和完整路径 |
 | `icon <分身.app> <图片>` | 使用 PNG、JPEG 或 ICNS 替换图标 |
 | `rename <分身.app> <名称>` | 修改显示名称、应用包文件名和已有软链接 |
-| `verify <分身.app>` | 检查归属、签名和自定义图标 |
+| `adv-clone <分身.app> [--data-dir <目录>] [--proxy <地址>] [--locale <语言>]` | 查看或更新环境配置，`--reset` 移除配置 |
+| `verify <分身.app>` | 检查归属、签名、自定义图标和环境动态库 |
 | `remove <分身.app>` | 移除受管理的副本，保留应用用户数据 |
 | `stats` | 按原应用显示累计成功创建数和现存分身数 |
 | `register` | 创建应用软链接并向 macOS 注册 |
@@ -69,7 +70,29 @@ tag 支持 `v0.1.0` 或 `v0.2.0-rc.1` 这样的格式，后者会标记为预发
 | `version` / `--version` | 查看 CLI 版本 |
 | `help` / `--help` | 查看帮助 |
 
-分身路径可从 Finder 拖入终端，也支持软链接。换图标、改名和移除前需退出对应分身。换图标和改名保留当前应用版本与分身身份；不提供应用更新命令。
+分身路径可从 Finder 拖入终端，也支持软链接。换图标、改环境、改名和移除前需退出对应分身。换图标和改名保留当前应用版本、分身身份及环境配置；不提供应用更新命令。
+
+## 高级环境配置
+
+先用 `clone` 创建分身，再配置这个已有副本：
+
+```sh
+./build/app-clone adv-clone --lang zh
+./build/app-clone adv-clone ~/Applications/app-clone/微信工作.app \
+  --data-dir "$HOME/Library/Application Support/app-clone/data/wechat-work" \
+  --proxy http://127.0.0.1:7890 \
+  --locale zh_CN.UTF-8
+
+# 查看配置，或移除配置并保留用户数据。
+./build/app-clone adv-clone ~/Applications/app-clone/微信工作.app
+./build/app-clone adv-clone ~/Applications/app-clone/微信工作.app --reset
+```
+
+三个选项可单独使用，只修改传入的项，保留其他配置。`--data-dir` 创建 `home`、`tmp` 子目录并设置分身的 HOME、TMPDIR；`--proxy` 设置 HTTP_PROXY、HTTPS_PROXY，仅支持 HTTP/HTTPS 地址；`--locale` 设置 LANG、LC_ALL，而 `--lang` 控制 CLI 输出语言。加 `--json` 返回分身记录，启用后包含 `environment` 字段。
+
+设置时需要 Apple Command Line Tools 或 Xcode。命令按配置生成并编译双架构 `libappclone_env.dylib`，在暂存副本中添加主程序依赖、签名和验证，再通过事务安装。准备失败保留原分身和清单，不需要手动执行 `make env-dylib` 或注入示例库。
+
+配置在下次启动生效，不自动迁移用户数据；`--reset` 和 `remove` 都保留数据目录。应用是否采用这些环境变量取决于其实现，钥匙串、硬编码路径及所有辅助进程并不因此自动隔离。不支持的格式、加密或头部余量不足会被拒绝。重置要求本模块仍为最后一个动态库依赖，以保留其他库的序号。
 
 ## 工作空间
 
@@ -78,11 +101,12 @@ tag 支持 `v0.1.0` 或 `v0.2.0-rc.1` 这样的格式，后者会标记为预发
 - `apps/`：分身应用。
 - `state.json`：分身清单和创建统计。
 - `staging/`：操作期间的暂存副本。
+- `data/`：可选的高级配置数据目录，通过 `--data-dir` 指定。
 - `pending.json`：事务进行中的恢复记录。
 
 `~/Applications/app-clone/` 只存放指向副本的软链接，不搬运应用包。Finder、Spotlight 和启动台的实际显示由 macOS 控制，同名的无关文件和其他链接不会被覆盖。
 
-`--workspace <目录>` 指定独立工作空间。clone、list、stats、register 默认使用上述目录；icon、rename、verify、remove 根据分身路径自动定位工作空间，也允许显式指定匹配的工作空间。自定义工作空间默认不创建应用入口，需要时运行 `register --workspace <目录>`。
+`--workspace <目录>` 指定独立工作空间。clone、list、stats、register 默认使用上述目录；icon、rename、adv-clone、verify、remove 根据分身路径自动定位工作空间，也允许显式指定匹配的工作空间。自定义工作空间默认不创建应用入口，需要时运行 `register --workspace <目录>`。
 
 不自动迁移此前存放在其他位置的应用。新分身 Bundle ID 为 `<原应用BundleID>.<创建序号>.<uuid>`，成功创建后递增，删除不复用。兼容读取旧版清单；历史不完整时通过 `historyComplete: false` 标识。
 
@@ -111,14 +135,13 @@ tag 支持 `v0.1.0` 或 `v0.2.0-rc.1` 这样的格式，后者会标记为预发
 make test
 ```
 
-包含 40 项 CLI 集成测试，以及 Swift 进程、国际化和链接检查。测试使用临时目录中的应用夹具并自动清理。macOS CI 执行测试和发布构建检查。
+包含 46 项 CLI 集成测试，以及 Swift 进程、国际化、链接和环境模块检查。测试使用临时目录中的双架构应用验证实际环境注入、更新、重置和失败保护。macOS CI 执行测试和发布构建检查。
 
 - `sources/cli/`：命令参数、中英帮助和输出。
 - `sources/core/`：分身操作、事务、签名、图标和国际化。
+- `modules/appclone-env/`：`adv-clone` 使用的 C 源码生成器和 Mach-O 辅助代码。
 - `tests/`：集成测试和 Swift 检查。
 
+`make env-dylib` 使用模块中的固定示例配置构建 `build/libappclone_env.dylib`，仅用于开发验证。`adv-clone` 根据实际选项另行生成动态库。接口和命名见[环境模块说明](modules/appclone-env/readme.md)。
+
 源文件名使用小写；Swift 用 `swift-format` 格式化，Python 用 `ruff format` 格式化。提交前运行完整测试，不提交构建产物、工作空间数据、密钥和本地配置。
-
-## 许可证
-
-开源许可证尚未确定。

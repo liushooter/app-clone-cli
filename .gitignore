@@ -9,6 +9,7 @@ __pycache__/
 
 # Local clone workspace (when --workspace points at the repository)
 /apps/
+/data/
 /staging/
 /state.json
 /pending.json

@@ -56,6 +56,38 @@ class CLITests(unittest.TestCase):
             check=True,
             capture_output=True,
         )
+        cls.environment_program = Path(cls.shared.name) / "environment-fixture"
+        environment_source = Path(cls.shared.name) / "environment-fixture.c"
+        environment_source.write_bytes(
+            b"""#include <stdio.h>
+#include <stdlib.h>
+int main(void) {
+    const char *keys[] = {"HOME", "TMPDIR", "HTTP_PROXY", "HTTPS_PROXY", "LANG", "LC_ALL", "APP_CLONE_ORIGINAL_HOME"};
+    for (unsigned i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i) {
+        const char *value = getenv(keys[i]);
+        printf("%s=%s\\n", keys[i], value ? value : "<unset>");
+    }
+    return 0;
+}
+"""
+        )
+        subprocess.run(
+            [
+                "/usr/bin/clang",
+                "-arch",
+                "arm64",
+                "-arch",
+                "x86_64",
+                "-Wl,-headerpad,0x400",
+                "-x",
+                "c",
+                str(environment_source),
+                "-o",
+                str(cls.environment_program),
+            ],
+            check=True,
+            capture_output=True,
+        )
 
     @classmethod
     def tearDownClass(cls):
@@ -150,6 +182,205 @@ class CLITests(unittest.TestCase):
     def assert_clean(self):
         self.assertFalse((self.root / "pending.json").exists())
         self.assertEqual(list((self.root / "staging").iterdir()), [])
+
+    def use_environment_fixture(self):
+        shutil.copy2(self.environment_program, self.source / "Contents/MacOS/fixture")
+        subprocess.run(
+            ["/usr/bin/codesign", "--force", "--sign", "-", str(self.source)],
+            check=True,
+            capture_output=True,
+        )
+        self.original = digest_tree(self.source)
+
+    def run_environment_fixture(self, app):
+        result = subprocess.run(
+            [str(app / "Contents/MacOS/fixture")],
+            env={
+                "HOME": "/example/inherited-home",
+                "TMPDIR": "/example/inherited-tmp/",
+                "LANG": "C",
+            },
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return dict(line.split("=", 1) for line in result.stdout.splitlines())
+
+    def test_adv_clone_help_and_read_only_status(self):
+        for language, phrase in [("zh", "用法："), ("en", "Usage:")]:
+            for suffix in [[], ["--help"]]:
+                result = self.localized_cli("adv-clone", *suffix, "--lang", language)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn(phrase, result.stdout)
+                self.assertIn("--reset", result.stdout)
+        record = self.create(icon=False)
+        before = digest_tree(self.root)
+        self.assertEqual(
+            self.cli("adv-clone", self.app(record), workspace=False), record
+        )
+        self.assertEqual(digest_tree(self.root), before)
+        self.assertEqual(
+            self.cli("adv-clone", self.source, success=False)["code"], "not_managed"
+        )
+
+    def test_adv_clone_environment_applies_updates_and_resets(self):
+        self.use_environment_fixture()
+        record = self.create(icon=False)
+        stats = self.cli("stats")
+        app = self.app(record)
+        baseline = self.run_environment_fixture(app)
+        data = self.directory / '数据 "quoted" \\ dir'
+        configured = self.cli(
+            "adv-clone",
+            app,
+            "--data-dir",
+            data,
+            "--proxy",
+            "http://127.0.0.1:7890",
+            "--locale",
+            "zh_CN.UTF-8",
+            workspace=False,
+        )
+        self.assertEqual(configured["id"], record["id"])
+        self.assertEqual(configured["environment"]["dataDirectory"], str(data))
+        self.assertEqual(len(configured["environment"]["dylibSHA256"]), 64)
+        self.assertTrue((data / "home").is_dir())
+        self.assertEqual((data / "tmp").stat().st_mode & 0o777, 0o700)
+        values = self.run_environment_fixture(app)
+        self.assertEqual(values["HOME"], str(data / "home"))
+        self.assertEqual(values["TMPDIR"], str(data / "tmp") + "/")
+        self.assertEqual(values["HTTP_PROXY"], "http://127.0.0.1:7890")
+        self.assertEqual(values["HTTPS_PROXY"], values["HTTP_PROXY"])
+        self.assertEqual(values["LANG"], "zh_CN.UTF-8")
+        self.assertEqual(values["LC_ALL"], values["LANG"])
+        self.assertEqual(values["APP_CLONE_ORIGINAL_HOME"], baseline["HOME"])
+        self.cli("verify", app)
+        updated = self.cli("adv-clone", app, "--proxy", "https://localhost:8888")
+        self.assertEqual(updated["environment"]["dataDirectory"], str(data))
+        self.assertEqual(updated["environment"]["locale"], "zh_CN.UTF-8")
+        dependencies = subprocess.run(
+            [
+                "/usr/bin/otool",
+                "-arch",
+                "all",
+                "-L",
+                str(app / "Contents/MacOS/fixture"),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        self.assertEqual(
+            dependencies.count("@executable_path/../Frameworks/libappclone_env.dylib"),
+            2,
+        )
+        self.assertEqual(
+            self.run_environment_fixture(app)["HTTP_PROXY"], "https://localhost:8888"
+        )
+        saved = data / "home" / "user-data.txt"
+        saved.write_text("preserve me")
+        reset = self.cli("adv-clone", app, "--reset")
+        self.assertNotIn("environment", reset)
+        self.assertFalse((app / "Contents/Frameworks/libappclone_env.dylib").exists())
+        self.assertEqual(self.run_environment_fixture(app), baseline)
+        self.assertEqual(saved.read_text(), "preserve me")
+        self.assertEqual(self.cli("stats"), stats)
+        self.assertEqual(digest_tree(self.source), self.original)
+        self.cli("verify", app)
+        self.assert_clean()
+
+    def test_adv_clone_survives_rename_icon_and_removal(self):
+        self.use_environment_fixture()
+        record = self.create(icon=False)
+        data = self.root / "data" / record["id"]
+        configured = self.cli("adv-clone", self.app(record), "--data-dir", data)
+        renamed = self.cli("rename", self.app(configured), "新名字")
+        changed = self.cli("icon", self.app(renamed), self.red)
+        self.assertEqual(changed["environment"]["dataDirectory"], str(data))
+        self.assertEqual(
+            self.run_environment_fixture(self.app(changed))["HOME"], str(data / "home")
+        )
+        self.cli("verify", self.app(changed))
+        saved = data / "home" / "user-data.txt"
+        saved.write_text("preserve me")
+        self.cli("remove", self.app(changed))
+        self.assertEqual(saved.read_text(), "preserve me")
+
+    def test_adv_clone_rejects_invalid_configuration_without_mutation(self):
+        record = self.create(icon=False)
+        app = self.app(record)
+        before = digest_tree(self.root)
+        for options, code in [
+            (["--proxy", "socks5://127.0.0.1:1080"], "invalid_proxy"),
+            (["--proxy", "http://host:99999"], "invalid_proxy"),
+            (["--locale", "bad\nlocale"], "invalid_locale"),
+            (["--data-dir", self.root], "invalid_data_directory"),
+            (["--data-dir", self.root / "pending.json"], "invalid_data_directory"),
+            (["--data-dir", app / "data"], "invalid_data_directory"),
+            (["--reset", "--locale", "C"], "usage"),
+            (["--locale", "--lang", "--lang", "en"], "invalid_locale"),
+        ]:
+            with self.subTest(options=options):
+                self.assertEqual(
+                    self.cli("adv-clone", app, *options, success=False)["code"], code
+                )
+                self.assertEqual(digest_tree(self.root), before)
+        directory = self.directory / "linked-data"
+        directory.mkdir()
+        (directory / "home").symlink_to(self.directory, target_is_directory=True)
+        self.assertEqual(
+            self.cli("adv-clone", app, "--data-dir", directory, success=False)["code"],
+            "invalid_path",
+        )
+        self.assertEqual(digest_tree(self.root), before)
+
+    def test_adv_clone_compile_failure_preserves_installed_clone(self):
+        self.use_environment_fixture()
+        record = self.create(icon=False)
+        before = digest_tree(self.root)
+        data = self.directory / "data"
+        result = subprocess.run(
+            [
+                str(CLI),
+                "adv-clone",
+                str(self.app(record)),
+                "--data-dir",
+                str(data),
+                "--json",
+            ],
+            env={**os.environ, "DEVELOPER_DIR": str(self.directory / "missing-xcode")},
+            capture_output=True,
+            text=True,
+            timeout=45,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(json.loads(result.stderr)["code"], "command_failed")
+        self.assertFalse(data.exists())
+        self.assertEqual(digest_tree(self.root), before)
+        self.assert_clean()
+
+    def test_adv_clone_rejects_unmanaged_library_and_unsupported_executable(self):
+        record = self.create(icon=False)
+        app = self.app(record)
+        library = app / "Contents/Frameworks/libappclone_env.dylib"
+        library.parent.mkdir()
+        library.write_bytes(b"unmanaged library")
+        before = digest_tree(self.root)
+        self.assertEqual(
+            self.cli("adv-clone", app, "--locale", "C", success=False)["code"],
+            "environment_conflict",
+        )
+        self.assertEqual(digest_tree(self.root), before)
+        library.unlink()
+        (app / "Contents/MacOS/fixture").write_text("#!/bin/sh\nexit 0\n")
+        before = digest_tree(self.root)
+        self.assertEqual(
+            self.cli("adv-clone", app, "--locale", "C", success=False)["code"],
+            "unsupported_macho",
+        )
+        self.assertEqual(digest_tree(self.root), before)
+        self.assert_clean()
 
     def localized_cli(self, *arguments, locale="en_US.UTF-8"):
         env = {

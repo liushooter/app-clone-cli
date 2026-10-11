@@ -36,8 +36,8 @@ Choose the archive for your Mac's chip, then extract it to run the tool. For ver
 
 | Mac chip | Download |
 | --- | --- |
-| Apple Silicon (M series) | `app-clone-v0.1.0-macos-apple-silicon.tar.gz` |
-| Intel processor | `app-clone-v0.1.0-macos-intel.tar.gz` |
+| Apple Silicon (M series) | `app-clone-v0.2.0-macos-apple-silicon.tar.gz` |
+| Intel processor | `app-clone-v0.2.0-macos-intel.tar.gz` |
 
 You can find your chip or processor in the Apple menu → About This Mac. Place the archive beside the checksum file and run `shasum -a 256 --check --ignore-missing sha256sums.txt` to verify the downloaded archive.
 
@@ -64,7 +64,8 @@ You can find your chip or processor in the Apple menu → About This Mac. Place 
 | `list` | List managed clones and their full paths |
 | `icon <clone.app> <image>` | Replace the icon using PNG, JPEG, or ICNS |
 | `rename <clone.app> <name>` | Change the display name, bundle filename, and existing shortcut |
-| `verify <clone.app>` | Check ownership, signature, and any custom icon |
+| `adv-clone <clone.app> [--data-dir <dir>] [--proxy <url>] [--locale <locale>]` | View or update a managed clone's environment; `--reset` removes the configuration |
+| `verify <clone.app>` | Check ownership, signature, custom icon, and environment library |
 | `remove <clone.app>` | Remove the managed copy, preserving app user data |
 | `stats` | Show total creations and current clone counts per source app |
 | `register` | Create application symlinks and register them with macOS |
@@ -72,7 +73,29 @@ You can find your chip or processor in the Apple menu → About This Mac. Place 
 | `version` / `--version` | Print the CLI version |
 | `help` / `--help` | Show usage |
 
-Quit a clone before changing its icon, renaming it, or removing it. Rename and icon replacement preserve the installed app version and clone identity. There is no app update command.
+Quit a clone before changing its icon, environment, or name, or removing it. Rename and icon replacement preserve the installed app version, clone identity, and environment configuration. There is no app update command.
+
+## Advanced environment settings
+
+Create a clone with `clone` first, then configure that managed copy:
+
+```sh
+./build/app-clone adv-clone --lang en
+./build/app-clone adv-clone ~/Applications/app-clone/wechat-work.app \
+  --data-dir "$HOME/Library/Application Support/app-clone/data/wechat-work" \
+  --proxy http://127.0.0.1:7890 \
+  --locale zh_CN.UTF-8
+
+# Read the current settings, or remove them while keeping user data.
+./build/app-clone adv-clone ~/Applications/app-clone/wechat-work.app
+./build/app-clone adv-clone ~/Applications/app-clone/wechat-work.app --reset
+```
+
+Options can be used separately; omitted settings are preserved. `--data-dir` creates `home` and `tmp` subdirectories and sets `HOME` and `TMPDIR`. `--proxy` sets `HTTP_PROXY` and `HTTPS_PROXY`; only HTTP/HTTPS proxy URLs are supported. `--locale` sets `LANG` and `LC_ALL`, while `--lang` controls the CLI's own output. `--json` returns the clone record, including `environment` when enabled.
+
+Setting configuration requires Apple Command Line Tools or Xcode. The command generates and compiles a universal `libappclone_env.dylib` for that configuration, adds a dependency to the main executable, and signs and verifies the staged copy before installing it. It uses the existing transaction recovery flow; failures preserve the installed clone and catalog. There is no need to run `make env-dylib` or inject the example library yourself.
+
+Settings apply on the next launch. User data is not migrated or deleted, including after `--reset` or `remove`. Applications decide whether to honor these environment variables; this does not isolate keychain entries, hard-coded paths, or every helper process. Unsupported, encrypted, or insufficiently padded executables are rejected. Reset removes the module's dependency only when it remains the last library dependency, preserving existing library ordinals.
 
 ## Workspaces and storage
 
@@ -82,12 +105,13 @@ The default workspace is `~/Library/Application Support/app-clone`:
 apps/         Managed .app copies
 state.json    Clone catalog and creation counts
 staging/      Temporary copies during operations
+data/         Optional advanced data directories (when selected with --data-dir)
 pending.json  Recovery journal, present only during a transaction
 ```
 
 `~/Applications/app-clone/` contains symlinks to the copies. App bundles stay in the workspace. macOS controls their appearance in Finder, Spotlight, and Launchpad. Existing unrelated files and shortcuts are never overwritten.
 
-`--workspace <directory>` selects a separate workspace. `clone`, `list`, `stats`, and `register` otherwise use the default workspace. `icon`, `rename`, `verify`, and `remove` locate the workspace from the clone path, including symlinks. An explicit workspace must match the managed clone.
+`--workspace <directory>` selects a separate workspace. `clone`, `list`, `stats`, and `register` otherwise use the default workspace. `icon`, `rename`, `adv-clone`, `verify`, and `remove` locate the workspace from the clone path, including symlinks. An explicit workspace must match the managed clone.
 
 Custom workspaces do not automatically publish application shortcuts. Run `register --workspace <directory>` to create them. Existing applications in other locations are not automatically moved or migrated.
 
@@ -120,16 +144,15 @@ Cloning changes the app's identity and signature. Some apps may refuse to run or
 make test
 ```
 
-The suite includes 40 CLI integration tests plus Swift process, localization, and symlink checks. Fixtures are created in temporary directories, including small signed apps, and cleaned up afterwards. GitHub Actions builds and tests on macOS and checks the release binary.
+The suite includes 46 CLI integration tests plus Swift process, localization, symlink, and environment module checks. Fixtures include a signed universal app used to test injected environment variables, updates, reset, and failure preservation. GitHub Actions builds and tests on macOS and checks the release binary.
 
 ```text
-sources/cli/   Argument parsing, bilingual help, text and JSON output
-sources/core/  Clone operations, transactions, signing, icons, localization
-tests/        Integration tests and Swift checks
+sources/cli/          Argument parsing, bilingual help, text and JSON output
+sources/core/         Clone operations, transactions, signing, icons, localization
+modules/appclone-env/  C source generator and Mach-O helpers used by adv-clone
+tests/                Integration tests and Swift checks
 ```
 
+`make env-dylib` builds `build/libappclone_env.dylib` with the module's fixed example configuration for development only. The `adv-clone` command generates a separate library from the selected settings. See the [environment module guide](modules/appclone-env/readme.md) for its API and naming.
+
 Keep source filenames lowercase. Format Swift with `swift-format` and Python with `ruff format`; run the full suite before submitting a change. Generated binaries, workspace data, local configuration, and credentials do not belong in Git.
-
-## License
-
-No open-source license has been selected yet.

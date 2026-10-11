@@ -125,6 +125,42 @@ public struct CloneEngine: Sendable {
     }
   }
 
+  /// With no options this only reads the managed clone's environment configuration.
+  public func configureEnvironment(
+    app application: URL, dataDirectory: URL? = nil, proxy: String? = nil, locale: String? = nil,
+    reset: Bool = false, token: CancellationToken = CancellationToken(),
+    onEvent: EventHandler = { _ in }
+  ) throws -> CloneRecord {
+    try token.check()
+    let workspace = Workspace(root: root)
+    return try workspace.withLock {
+      let before = try workspace.readCatalog()
+      var record = try find(application, in: before)
+      let app = try workspace.appURL(record)
+      try BundleFiles.checkOwnership(app, record: record)
+      guard reset || dataDirectory != nil || proxy != nil || locale != nil else { return record }
+      guard !reset || (dataDirectory == nil && proxy == nil && locale == nil) else {
+        throw CloneFailure("usage", L10n.text(.resetEnvironmentUsage))
+      }
+      try ensureStopped(app)
+      if reset {
+        guard record.environment != nil else { return record }
+        record.environment = nil
+      } else {
+        var settings = record.environment ?? CloneEnvironment()
+        if let dataDirectory { settings.dataDirectory = BundleFiles.canonical(dataDirectory).path }
+        if let proxy { settings.proxy = proxy }
+        if let locale { settings.locale = locale }
+        try EnvironmentInstaller.validate(
+          settings, workspace: root, source: URL(fileURLWithPath: record.source.path))
+        record.environment = settings
+      }
+      return try build(
+        record: record, from: app, icon: nil, workspace: workspace, before: before,
+        token: token, onEvent: onEvent, updateEnvironment: true)
+    }
+  }
+
   public func rename(
     app application: URL, name: String, token: CancellationToken = CancellationToken(),
     onEvent: EventHandler = { _ in }
@@ -207,6 +243,7 @@ public struct CloneEngine: Sendable {
       try BundleFiles.checkOwnership(app, record: record)
       try verifySignature(app, token: token)
       if record.customIconSHA256 != nil { _ = try preservedIcon(record, at: app) }
+      if let settings = record.environment { try EnvironmentInstaller.verify(settings, in: app) }
       return record
     }
   }
@@ -214,7 +251,7 @@ public struct CloneEngine: Sendable {
   private func build(
     record original: CloneRecord, from source: URL, icon: URL?,
     workspace: Workspace, before: Catalog, token: CancellationToken,
-    onEvent: EventHandler
+    onEvent: EventHandler, updateEnvironment: Bool = false
   ) throws -> CloneRecord {
     try token.check()
     let fm = FileManager.default
@@ -236,6 +273,9 @@ public struct CloneEngine: Sendable {
     _ = try ProcessRunner().run("/usr/bin/ditto", [source.path, candidate.path], token: token)
     try BundleFiles.validateLinks(in: candidate, token: token)
     _ = try AppInspector.inspect(candidate)
+    if let settings = before.clones.first(where: { $0.id == record.id })?.environment {
+      try EnvironmentInstaller.verify(settings, in: candidate)
+    }
     onEvent(CloneEvent("identity", L10n.text(.identityProgress)))
     var plist = try BundleFiles.readPlist(BundleFiles.plistURL(candidate))
     plist["CFBundleIdentifier"] = record.bundleID
@@ -249,6 +289,13 @@ public struct CloneEngine: Sendable {
       try IconBuilder().install(prepared, into: candidate)
       record.customIconSHA256 = prepared.sha256
     }
+    if updateEnvironment {
+      onEvent(CloneEvent("environment", L10n.text(.environmentProgress)))
+      try EnvironmentInstaller.install(
+        record.environment,
+        replacing: before.clones.first(where: { $0.id == record.id })?.environment,
+        into: candidate, job: job, token: token)
+    }
     try token.check()
     onEvent(CloneEvent("attributes", L10n.text(.attributesProgress)))
     _ = try ProcessRunner().run("/usr/bin/xattr", ["-crs", candidate.path], token: token)
@@ -258,6 +305,9 @@ public struct CloneEngine: Sendable {
     onEvent(CloneEvent("verify", L10n.text(.verifyProgress)))
     try verifySignature(candidate, token: token)
     if record.customIconSHA256 != nil { _ = try preservedIcon(record, at: candidate) }
+    if record.environment != nil {
+      record.environment?.dylibSHA256 = try EnvironmentInstaller.digest(in: candidate)
+    }
     record.modifiedAt = Date()
     var after = before.trackingCreations()
     if !before.clones.contains(where: { $0.id == record.id }) {
@@ -274,6 +324,10 @@ public struct CloneEngine: Sendable {
     let target = try workspace.appURL(record)
     let previous = try before.clones.first { $0.id == record.id }.map { try workspace.appURL($0) }
     if let previous { try ensureStopped(previous) }
+    if updateEnvironment, let settings = record.environment {
+      try EnvironmentInstaller.prepareDirectories(settings)
+      try token.check()
+    }
     onEvent(CloneEvent("install", L10n.text(.installProgress)))
     try workspace.commit(cloneID: record.id, operationID: operationID, before: before, after: after)
     let links = ApplicationLink(directory: Self.defaultApplicationsDirectory)
