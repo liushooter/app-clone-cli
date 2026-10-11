@@ -5,6 +5,7 @@ public struct CloneEnvironment: Codable, Sendable, Equatable {
   public var dataDirectory: String?
   public var proxy: String?
   public var locale: String?
+  public var appLanguage: String?
   public var dylibSHA256: String?
 
   var variables: [String: String] {
@@ -43,6 +44,12 @@ enum EnvironmentInstaller {
       guard !locale.isEmpty, locale.utf8.count <= 128,
         locale.range(of: "^[A-Za-z][A-Za-z0-9_.@-]*$", options: .regularExpression) != nil
       else { throw CloneFailure("invalid_locale", L10n.text(.invalidLocale)) }
+    }
+    if let language = settings.appLanguage {
+      guard language.utf8.count <= 128,
+        language.range(of: "^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*\\z", options: .regularExpression)
+          != nil
+      else { throw CloneFailure("invalid_app_language", L10n.text(.invalidAppLanguage)) }
     }
     if let path = settings.dataDirectory {
       let directory = URL(fileURLWithPath: path)
@@ -108,10 +115,11 @@ enum EnvironmentInstaller {
         try fm.createDirectory(at: frameworks, withIntermediateDirectories: false)
       }
       try BundleFiles.requireRegular(frameworks, directory: true)
-      let source = job.appendingPathComponent("env.c")
+      let source = job.appendingPathComponent(settings.appLanguage == nil ? "env.c" : "env.m")
       let generated = try EnvironmentSource.generate(
         variables: settings.variables,
-        dataDirectory: URL(fileURLWithPath: settings.dataDirectory ?? "/"))
+        dataDirectory: URL(fileURLWithPath: settings.dataDirectory ?? "/"),
+        appLanguage: settings.appLanguage)
       try generated.write(to: source, atomically: true, encoding: .utf8)
       try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: source.path)
       let runner = ProcessRunner()
@@ -124,7 +132,8 @@ enum EnvironmentInstaller {
           "-isysroot", sdk.output, "-mmacosx-version-min=14.0", "-arch", "arm64", "-arch", "x86_64",
           "-dynamiclib", "-O2", "-Wall", "-Wextra", "-Werror", "-install_name", loadPath,
           source.path, "-o", library.path,
-        ], token: token)
+        ] + (settings.appLanguage == nil ? [] : ["-fobjc-arc", "-framework", "Foundation"]),
+        token: token)
       _ = try runner.run(
         "/usr/bin/codesign", ["--force", "--sign", "-", library.path], token: token)
     } else if previous != nil {

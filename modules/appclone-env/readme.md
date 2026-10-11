@@ -1,6 +1,6 @@
 # app-clone 环境模块
 
-本项目的环境配置源码生成器、Mach-O 依赖插入器，以及 `libappclone_env.dylib` 的 C 初始化代码。Swift 部分已编入 CLI，由 `adv-clone` 命令调用。
+本项目的环境配置源码生成器、Mach-O 依赖插入器，以及 `libappclone_env.dylib` 的初始化代码。Swift 部分已编入 CLI，由 `adv-clone` 命令调用。
 
 ## 命令行使用
 
@@ -13,15 +13,17 @@
   --locale zh_CN.UTF-8
 ```
 
-三个选项可单独使用，未传入的配置会保留。`--data-dir` 创建 `home`、`tmp` 子目录并设置 HOME、TMPDIR；`--proxy` 设置 HTTP_PROXY、HTTPS_PROXY；`--locale` 设置 LANG、LC_ALL。`--lang` 仍表示 CLI 输出语言。
+各选项可单独使用，未传入的配置会保留。`--data-dir` 创建 `home`、`tmp` 子目录并设置 HOME、TMPDIR；`--proxy` 设置 HTTP_PROXY、HTTPS_PROXY；`--locale` 设置 LANG、LC_ALL。`--lang` 仍表示 CLI 输出语言。
+
+`--app-language zh-CN` 设置分身界面语言，接受 `zh-CN`、`zh-Hant`、`en`、`ja` 等语言标识，与 `--locale` 独立。配置保存在 `environment.appLanguage`。动态库每次加载时合并 `NSUserDefaults` 的临时 `NSArgumentDomain`，设置 `AppleLanguages`，不写入应用或系统的持久偏好。已有的显式 `-AppleLanguages` 启动参数优先，其他参数保留。`--reset` 后不再覆盖语言。
 
 `adv-clone <分身.app>` 查看配置；`adv-clone <分身.app> --reset` 移除动态库及依赖并重新签名，保留数据目录。可加 `--json` 读取分身记录中的 `environment`，未启用时该字段省略。
 
-设置时需要 Apple Command Line Tools 或 Xcode。CLI 使用本模块生成 C 源码并编译双架构动态库，在暂存副本中插入依赖、签名并验证，再通过事务安装。失败时保留原分身和清单。源码只放在临时任务目录中，任务结束后清理。不需要手动构建或注入动态库。
+设置时需要 Apple Command Line Tools 或 Xcode。CLI 使用本模块生成源码并编译双架构动态库；配置界面语言时生成 Objective-C 并链接 Foundation，否则仍使用 C。在暂存副本中插入依赖、签名并验证，再通过事务安装。失败时保留原分身和清单。源码只放在临时任务目录中，任务结束后清理。不需要手动构建或注入动态库。
 
 | 文件 | 用途 |
 | --- | --- |
-| [env_source.swift](env_source.swift) | `EnvironmentSource.generate()` 将环境变量字典转换为 C 源码。 |
+| [env_source.swift](env_source.swift) | `EnvironmentSource.generate()` 将环境变量和可选的界面语言转换为 C / Objective-C 源码。 |
 | [macho.swift](macho.swift) | `MachOInjector.insertingDylib()` 检查头部空间，返回追加动态库依赖后的数据。 |
 | [env.c](env.c) | 空初始化入口，用于独立构建动态库。 |
 
@@ -57,10 +59,11 @@ let source = try EnvironmentSource.generate(
         "TMPDIR": "{{APP_CLONE_DATA_DIR}}/tmp",
         "HTTP_PROXY": "http://127.0.0.1:7890",
     ],
-    dataDirectory: URL(fileURLWithPath: "/example/clone-data")
+    dataDirectory: URL(fileURLWithPath: "/example/clone-data"),
+    appLanguage: "zh-CN"
 )
 
-// source 是待编译的 C 源码；生成动作不会修改当前进程环境。
+// source 是待编译的 Objective-C 源码；生成动作不会修改当前进程环境。
 // executableData 是应用副本的可执行文件内容。
 let patched = try MachOInjector.insertingDylib(
     "@executable_path/../Frameworks/libappclone_env.dylib",
@@ -73,4 +76,4 @@ let patched = try MachOInjector.insertingDylib(
 
 `MachOInjector.removingDylib(_:from:)` 移除最后一个动态库依赖，原有依赖的序号保持不变。如果此后又加入了其他库，则拒绝移除。两种操作都返回内存副本，不直接修改文件。
 
-动态库仅在加载时设置进程环境变量，不创建线程或轮询。应用是否使用新路径、代理和语言取决于其实现；钥匙串、硬编码路径及已缓存的目录不会因此自动隔离。初始化发生在应用 `main()` 之前，不保证早于其他动态库或 Objective-C 初始化代码。
+动态库仅在加载时设置进程环境变量和可选的语言偏好，不创建线程或轮询。应用是否使用新路径、代理和语言取决于其实现；界面语言需要应用自带对应翻译。钥匙串、硬编码路径及已缓存的目录不会因此自动隔离。初始化发生在应用 `main()` 之前，不保证早于其他动态库或 Objective-C 初始化代码，提前缓存的语言不保证改变。

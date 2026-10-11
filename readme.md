@@ -64,7 +64,7 @@ You can find your chip or processor in the Apple menu → About This Mac. Place 
 | `list` | List managed clones and their full paths |
 | `icon <clone.app> <image>` | Replace the icon using PNG, JPEG, or ICNS |
 | `rename <clone.app> <name>` | Change the display name, bundle filename, and existing shortcut |
-| `adv-clone <clone.app> [--data-dir <dir>] [--proxy <url>] [--locale <locale>]` | View or update a managed clone's environment; `--reset` removes the configuration |
+| `adv-clone <clone.app> [--data-dir <dir>] [--proxy <url>] [--locale <locale>] [--app-language <tag>]` | View or update a managed clone's environment; `--reset` removes the configuration |
 | `verify <clone.app>` | Check ownership, signature, custom icon, and environment library |
 | `remove <clone.app>` | Remove the managed copy, preserving app user data |
 | `stats` | Show total creations and current clone counts per source app |
@@ -92,6 +92,15 @@ Create a clone with `clone` first, then configure that managed copy:
 ```
 
 Options can be used separately; omitted settings are preserved. `--data-dir` creates `home` and `tmp` subdirectories and sets `HOME` and `TMPDIR`. `--proxy` sets `HTTP_PROXY` and `HTTPS_PROXY`; only HTTP/HTTPS proxy URLs are supported. `--locale` sets `LANG` and `LC_ALL`, while `--lang` controls the CLI's own output. `--json` returns the clone record, including `environment` when enabled.
+
+Use `--app-language` to give each clone its own interface language, independently of `--locale`:
+
+```sh
+./build/app-clone adv-clone ~/Applications/app-clone/wechat-work.app --app-language zh-CN
+./build/app-clone adv-clone ~/Applications/app-clone/wechat-personal.app --app-language en
+```
+
+The library sets `AppleLanguages` in the process's temporary argument domain at launch, without writing app or system preferences. The setting is stored as `environment.appLanguage` and reapplied each launch until changed or reset. Explicit launch arguments such as `open -a <clone.app> --args -AppleLanguages '(ja)'` take priority. The app must include the requested translation and honor macOS language preferences. Initialization runs before `main()`; code in other libraries or Objective-C initializers may have already cached a language.
 
 Setting configuration requires Apple Command Line Tools or Xcode. The command generates and compiles a universal `libappclone_env.dylib` for that configuration, adds a dependency to the main executable, and signs and verifies the staged copy before installing it. It uses the existing transaction recovery flow; failures preserve the installed clone and catalog. There is no need to run `make env-dylib` or inject the library yourself.
 
@@ -144,7 +153,7 @@ Cloning changes the app's identity and signature. Some apps may refuse to run or
 make test
 ```
 
-The suite includes 46 CLI integration tests plus Swift process, localization, symlink, and environment module checks. Fixtures include a signed universal app used to test injected environment variables, updates, reset, and failure preservation. GitHub Actions builds and tests on macOS and checks the release binary.
+The suite includes 47 CLI integration tests plus Swift process, localization, symlink, and environment module checks. Fixtures include a signed universal app used to test injected environment variables, updates, reset, and failure preservation. GitHub Actions builds and tests on macOS and checks the release binary.
 
 ```text
 sources/cli/          Argument parsing, bilingual help, text and JSON output

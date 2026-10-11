@@ -61,7 +61,7 @@ tag 支持 `v0.1.0` 或 `v0.2.0-rc.1` 这样的格式，后者会标记为预发
 | `list` | 列出分身名称和完整路径 |
 | `icon <分身.app> <图片>` | 使用 PNG、JPEG 或 ICNS 替换图标 |
 | `rename <分身.app> <名称>` | 修改显示名称、应用包文件名和已有软链接 |
-| `adv-clone <分身.app> [--data-dir <目录>] [--proxy <地址>] [--locale <语言>]` | 查看或更新环境配置，`--reset` 移除配置 |
+| `adv-clone <分身.app> [--data-dir <目录>] [--proxy <地址>] [--locale <语言>] [--app-language <语言标识>]` | 查看或更新环境配置，`--reset` 移除配置 |
 | `verify <分身.app>` | 检查归属、签名、自定义图标和环境动态库 |
 | `remove <分身.app>` | 移除受管理的副本，保留应用用户数据 |
 | `stats` | 按原应用显示累计成功创建数和现存分身数 |
@@ -88,7 +88,16 @@ tag 支持 `v0.1.0` 或 `v0.2.0-rc.1` 这样的格式，后者会标记为预发
 ./build/app-clone adv-clone ~/Applications/app-clone/微信工作.app --reset
 ```
 
-三个选项可单独使用，只修改传入的项，保留其他配置。`--data-dir` 创建 `home`、`tmp` 子目录并设置分身的 HOME、TMPDIR；`--proxy` 设置 HTTP_PROXY、HTTPS_PROXY，仅支持 HTTP/HTTPS 地址；`--locale` 设置 LANG、LC_ALL，而 `--lang` 控制 CLI 输出语言。加 `--json` 返回分身记录，启用后包含 `environment` 字段。
+各选项可单独使用，只修改传入的项，保留其他配置。`--data-dir` 创建 `home`、`tmp` 子目录并设置分身的 HOME、TMPDIR；`--proxy` 设置 HTTP_PROXY、HTTPS_PROXY，仅支持 HTTP/HTTPS 地址；`--locale` 设置 LANG、LC_ALL，而 `--lang` 控制 CLI 输出语言。加 `--json` 返回分身记录，启用后包含 `environment` 字段。
+
+使用独立的 `--app-language` 为不同分身指定界面语言，可与 `--locale` 分开设置：
+
+```sh
+./build/app-clone adv-clone ~/Applications/app-clone/微信工作.app --app-language zh-CN
+./build/app-clone adv-clone ~/Applications/app-clone/微信个人.app --app-language en
+```
+
+动态库在每次启动时将 `AppleLanguages` 写入进程的临时参数域，不写入应用或系统的持久偏好。配置保存在 `environment.appLanguage`，下次启动继续生效，直到修改或 `--reset`。显式启动参数（如 `open -a <分身.app> --args -AppleLanguages '(ja)'`）优先。应用需自带对应翻译并遵循 macOS 语言偏好；初始化在 `main()` 前执行，其他动态库或 Objective-C 初始化代码提前缓存的语言不保证改变。
 
 设置时需要 Apple Command Line Tools 或 Xcode。命令按配置生成并编译双架构 `libappclone_env.dylib`，在暂存副本中添加主程序依赖、签名和验证，再通过事务安装。准备失败保留原分身和清单，不需要手动执行 `make env-dylib` 或注入动态库。
 
@@ -135,7 +144,7 @@ tag 支持 `v0.1.0` 或 `v0.2.0-rc.1` 这样的格式，后者会标记为预发
 make test
 ```
 
-包含 46 项 CLI 集成测试，以及 Swift 进程、国际化、链接和环境模块检查。测试使用临时目录中的双架构应用验证实际环境注入、更新、重置和失败保护。macOS CI 执行测试和发布构建检查。
+包含 47 项 CLI 集成测试，以及 Swift 进程、国际化、链接和环境模块检查。测试使用临时目录中的双架构应用验证实际环境注入、更新、重置和失败保护。macOS CI 执行测试和发布构建检查。
 
 - `sources/cli/`：命令参数、中英帮助和输出。
 - `sources/core/`：分身操作、事务、签名、图标和国际化。

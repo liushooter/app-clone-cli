@@ -115,6 +115,7 @@ public enum L10n {
     case invalidLanguage
     case invalidProxy
     case invalidLocale
+    case invalidAppLanguage
     case invalidDataDirectory
     case environmentConflict
     case environmentChanged
@@ -126,6 +127,7 @@ public enum L10n {
     case environmentDataLine
     case environmentProxyLine
     case environmentLocaleLine
+    case environmentAppLanguageLine
   }
 
   public static func text(_ message: Message, _ arguments: String...) -> String {
@@ -150,6 +152,11 @@ public enum L10n {
         "语言格式无效，例如 zh_CN.UTF-8 或 en_US.UTF-8。",
         "Invalid locale; use a value such as zh_CN.UTF-8 or en_US.UTF-8."
       )
+    case .invalidAppLanguage:
+      pair = (
+        "应用语言标识无效，例如 zh-CN、zh-Hant 或 en。",
+        "Invalid app language tag; use a value such as zh-CN, zh-Hant, or en."
+      )
     case .invalidDataDirectory:
       pair = (
         "数据目录不能覆盖用户主目录、应用或工作空间；工作空间内请放到 data 的子目录。",
@@ -171,8 +178,8 @@ public enum L10n {
       )
     case .resetEnvironmentUsage:
       pair = (
-        "--reset 不能和 --data-dir、--proxy、--locale 同时使用。",
-        "--reset cannot be combined with --data-dir, --proxy, or --locale."
+        "--reset 不能和 --data-dir、--proxy、--locale、--app-language 同时使用。",
+        "--reset cannot be combined with --data-dir, --proxy, --locale, or --app-language."
       )
     case .environmentProgress:
       pair = ("更新分身环境动态库和加载依赖", "Updating the clone environment library and load dependency")
@@ -188,6 +195,8 @@ public enum L10n {
       pair = ("HTTP/HTTPS 代理：{}", "HTTP/HTTPS proxy: {}")
     case .environmentLocaleLine:
       pair = ("应用语言环境：{}", "App locale: {}")
+    case .environmentAppLanguageLine:
+      pair = ("应用界面语言：{}", "App interface language: {}")
     case .linkOccupied:
       pair = ("应用入口已被占用，未覆盖：{}", "Application shortcut is occupied; nothing was overwritten: {}")
     case .cancelled:

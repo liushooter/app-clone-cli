@@ -57,15 +57,24 @@ class CLITests(unittest.TestCase):
             capture_output=True,
         )
         cls.environment_program = Path(cls.shared.name) / "environment-fixture"
-        environment_source = Path(cls.shared.name) / "environment-fixture.c"
+        environment_source = Path(cls.shared.name) / "environment-fixture.m"
         environment_source.write_bytes(
-            b"""#include <stdio.h>
+            b"""#import <Foundation/Foundation.h>
+#include <stdio.h>
 #include <stdlib.h>
 int main(void) {
     const char *keys[] = {"HOME", "TMPDIR", "HTTP_PROXY", "HTTPS_PROXY", "LANG", "LC_ALL", "APP_CLONE_ORIGINAL_HOME"};
     for (unsigned i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i) {
         const char *value = getenv(keys[i]);
         printf("%s=%s\\n", keys[i], value ? value : "<unset>");
+    }
+    @autoreleasepool {
+        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+        printf("APPLE_LANGUAGE=%s\\n", [[NSLocale preferredLanguages].firstObject UTF8String]);
+        printf("GREETING=%s\\n", [NSLocalizedString(@"greeting", nil) UTF8String]);
+        printf("ARGUMENT=%s\\n", [[defaults stringForKey:@"FixtureArgument"] UTF8String]);
+        id saved = [defaults persistentDomainForName:[NSBundle mainBundle].bundleIdentifier][@"AppleLanguages"];
+        printf("SAVED_LANGUAGE=%s\\n", saved ? "present" : "<unset>");
     }
     return 0;
 }
@@ -80,7 +89,10 @@ int main(void) {
                 "x86_64",
                 "-Wl,-headerpad,0x400",
                 "-x",
-                "c",
+                "objective-c",
+                "-fobjc-arc",
+                "-framework",
+                "Foundation",
                 str(environment_source),
                 "-o",
                 str(cls.environment_program),
@@ -185,6 +197,18 @@ int main(void) {
 
     def use_environment_fixture(self):
         shutil.copy2(self.environment_program, self.source / "Contents/MacOS/fixture")
+        self.info["CFBundleDevelopmentRegion"] = "en"
+        self.plist.write_bytes(plistlib.dumps(self.info))
+        for language, greeting in [
+            ("en", "Hello"),
+            ("zh-Hans", "Chinese"),
+            ("ja", "Japanese"),
+        ]:
+            resources = self.source / "Contents/Resources" / f"{language}.lproj"
+            resources.mkdir(exist_ok=True)
+            (resources / "Localizable.strings").write_text(
+                f'"greeting" = "{greeting}";\n'
+            )
         subprocess.run(
             ["/usr/bin/codesign", "--force", "--sign", "-", str(self.source)],
             check=True,
@@ -192,9 +216,14 @@ int main(void) {
         )
         self.original = digest_tree(self.source)
 
-    def run_environment_fixture(self, app):
+    def run_environment_fixture(self, app, *arguments):
         result = subprocess.run(
-            [str(app / "Contents/MacOS/fixture")],
+            [
+                str(app / "Contents/MacOS/fixture"),
+                "-FixtureArgument",
+                "keep",
+                *arguments,
+            ],
             env={
                 "HOME": "/example/inherited-home",
                 "TMPDIR": "/example/inherited-tmp/",
@@ -214,6 +243,7 @@ int main(void) {
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn(phrase, result.stdout)
                 self.assertIn("--reset", result.stdout)
+                self.assertIn("--app-language", result.stdout)
         record = self.create(icon=False)
         before = digest_tree(self.root)
         self.assertEqual(
@@ -244,6 +274,7 @@ int main(void) {
         )
         self.assertEqual(configured["id"], record["id"])
         self.assertEqual(configured["environment"]["dataDirectory"], str(data))
+        self.assertNotIn("appLanguage", configured["environment"])
         self.assertEqual(len(configured["environment"]["dylibSHA256"]), 64)
         self.assertTrue((data / "home").is_dir())
         self.assertEqual((data / "tmp").stat().st_mode & 0o777, 0o700)
@@ -290,6 +321,49 @@ int main(void) {
         self.cli("verify", app)
         self.assert_clean()
 
+    def test_adv_clone_app_languages_are_isolated_and_reset(self):
+        self.use_environment_fixture()
+        chinese = self.app(self.create(icon=False, name="中文分身"))
+        japanese = self.app(self.create(icon=False, name="日文分身"))
+        baseline = self.run_environment_fixture(chinese)
+        source_baseline = self.run_environment_fixture(self.source)
+        for app, language, greeting in [
+            (chinese, "zh-CN", "Chinese"),
+            (japanese, "ja", "Japanese"),
+        ]:
+            configured = self.cli("adv-clone", app, "--app-language", language)
+            self.assertEqual(configured["environment"]["appLanguage"], language)
+            for _ in range(2):
+                values = self.run_environment_fixture(app)
+                self.assertEqual(values["GREETING"], greeting)
+                self.assertEqual(values["APPLE_LANGUAGE"], language)
+                self.assertEqual(values["LANG"], "C")
+                self.assertEqual(values["LC_ALL"], "<unset>")
+                self.assertEqual(values["ARGUMENT"], "keep")
+                self.assertEqual(values["SAVED_LANGUAGE"], "<unset>")
+            self.cli("verify", app)
+        self.assertEqual(self.run_environment_fixture(chinese)["GREETING"], "Chinese")
+        self.assertEqual(self.run_environment_fixture(self.source), source_baseline)
+        overridden = self.run_environment_fixture(chinese, "-AppleLanguages", "(en)")
+        self.assertEqual(overridden["GREETING"], "Hello")
+        self.assertEqual(overridden["APPLE_LANGUAGE"], "en")
+        self.assertEqual(self.run_environment_fixture(chinese)["GREETING"], "Chinese")
+        updated = self.cli("adv-clone", chinese, "--locale", "en_US.UTF-8")
+        self.assertEqual(updated["environment"]["appLanguage"], "zh-CN")
+        self.assertEqual(self.run_environment_fixture(chinese)["GREETING"], "Chinese")
+        self.cli("adv-clone", chinese, "--app-language", "en")
+        values = self.run_environment_fixture(chinese)
+        self.assertEqual(values["GREETING"], "Hello")
+        self.assertEqual(values["LANG"], "en_US.UTF-8")
+        status = self.localized_cli("adv-clone", chinese, "--lang", "zh")
+        self.assertEqual(status.returncode, 0, status.stderr)
+        self.assertIn("应用界面语言：en", status.stdout)
+        self.cli("adv-clone", chinese, "--reset")
+        self.assertEqual(self.run_environment_fixture(chinese), baseline)
+        self.assertEqual(self.run_environment_fixture(japanese)["GREETING"], "Japanese")
+        self.assertEqual(digest_tree(self.source), self.original)
+        self.assert_clean()
+
     def test_adv_clone_survives_rename_icon_and_removal(self):
         self.use_environment_fixture()
         record = self.create(icon=False)
@@ -315,11 +389,18 @@ int main(void) {
             (["--proxy", "socks5://127.0.0.1:1080"], "invalid_proxy"),
             (["--proxy", "http://host:99999"], "invalid_proxy"),
             (["--locale", "bad\nlocale"], "invalid_locale"),
+            (["--app-language", ""], "invalid_app_language"),
+            (["--app-language", "zh_CN.UTF-8"], "invalid_app_language"),
+            (["--app-language", "en\n"], "invalid_app_language"),
+            (["--app-language", 'en");abort();//'], "invalid_app_language"),
+            (["--app-language", "a" * 129], "invalid_app_language"),
             (["--data-dir", self.root], "invalid_data_directory"),
             (["--data-dir", self.root / "pending.json"], "invalid_data_directory"),
             (["--data-dir", app / "data"], "invalid_data_directory"),
             (["--reset", "--locale", "C"], "usage"),
+            (["--reset", "--app-language", "en"], "usage"),
             (["--locale", "--lang", "--lang", "en"], "invalid_locale"),
+            (["--app-language", "--lang", "--lang", "en"], "invalid_app_language"),
         ]:
             with self.subTest(options=options):
                 self.assertEqual(

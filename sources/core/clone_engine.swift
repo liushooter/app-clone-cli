@@ -128,7 +128,7 @@ public struct CloneEngine: Sendable {
   /// With no options this only reads the managed clone's environment configuration.
   public func configureEnvironment(
     app application: URL, dataDirectory: URL? = nil, proxy: String? = nil, locale: String? = nil,
-    reset: Bool = false, token: CancellationToken = CancellationToken(),
+    appLanguage: String? = nil, reset: Bool = false, token: CancellationToken = CancellationToken(),
     onEvent: EventHandler = { _ in }
   ) throws -> CloneRecord {
     try token.check()
@@ -138,8 +138,12 @@ public struct CloneEngine: Sendable {
       var record = try find(application, in: before)
       let app = try workspace.appURL(record)
       try BundleFiles.checkOwnership(app, record: record)
-      guard reset || dataDirectory != nil || proxy != nil || locale != nil else { return record }
-      guard !reset || (dataDirectory == nil && proxy == nil && locale == nil) else {
+      guard reset || dataDirectory != nil || proxy != nil || locale != nil || appLanguage != nil
+      else {
+        return record
+      }
+      guard !reset || (dataDirectory == nil && proxy == nil && locale == nil && appLanguage == nil)
+      else {
         throw CloneFailure("usage", L10n.text(.resetEnvironmentUsage))
       }
       try ensureStopped(app)
@@ -151,6 +155,7 @@ public struct CloneEngine: Sendable {
         if let dataDirectory { settings.dataDirectory = BundleFiles.canonical(dataDirectory).path }
         if let proxy { settings.proxy = proxy }
         if let locale { settings.locale = locale }
+        if let appLanguage { settings.appLanguage = appLanguage }
         try EnvironmentInstaller.validate(
           settings, workspace: root, source: URL(fileURLWithPath: record.source.path))
         record.environment = settings

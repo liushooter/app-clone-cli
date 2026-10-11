@@ -10,12 +10,15 @@ enum CLIHelp {
       app-clone adv-clone <分身.app> --data-dir <目录> [--proxy <地址>] [--locale <语言>]
       app-clone adv-clone <分身.app> --proxy http://127.0.0.1:7890
       app-clone adv-clone <分身.app> --locale zh_CN.UTF-8
+      app-clone adv-clone <分身.app> --app-language zh-CN
       app-clone adv-clone <分身.app> --reset
 
     不带设置选项时查看当前配置；只修改传入的选项，保留其他配置。
     --data-dir 创建 home、tmp 子目录，设置分身的 HOME 和 TMPDIR。
     --proxy 设置 HTTP_PROXY 和 HTTPS_PROXY，只支持 HTTP/HTTPS 地址。
     --locale 设置 LANG 和 LC_ALL；--lang zh|en 控制本工具的输出语言。
+    --app-language 设置分身界面语言（AppleLanguages），例如 zh-CN、en、ja。
+    仅影响本次运行的偏好，不写入系统设置；显式 -AppleLanguages 启动参数优先。
     --reset 移除环境动态库及加载依赖，保留数据目录。
     --json 输出包含 environment 字段的分身记录；未启用时省略该字段。
 
@@ -30,12 +33,15 @@ enum CLIHelp {
       app-clone adv-clone <clone.app> --data-dir <directory> [--proxy <url>] [--locale <locale>]
       app-clone adv-clone <clone.app> --proxy http://127.0.0.1:7890
       app-clone adv-clone <clone.app> --locale zh_CN.UTF-8
+      app-clone adv-clone <clone.app> --app-language zh-CN
       app-clone adv-clone <clone.app> --reset
 
     Without setting options, show the current configuration. Updates preserve omitted settings.
     --data-dir creates home and tmp subdirectories and sets HOME and TMPDIR for the clone.
     --proxy sets HTTP_PROXY and HTTPS_PROXY; only HTTP/HTTPS URLs are supported.
     --locale sets LANG and LC_ALL; --lang zh|en controls this tool's output language.
+    --app-language sets the clone's interface language (AppleLanguages), e.g. zh-CN, en, or ja.
+    Uses process-local preferences; explicit -AppleLanguages launch arguments take priority.
     --reset removes the environment library and its load dependency, preserving data directories.
     --json prints the clone record, including environment when enabled.
 
@@ -57,7 +63,7 @@ enum CLIHelp {
       app-clone stats
       app-clone icon <分身.app> <图片>
       app-clone rename <分身.app> <新名称>
-      app-clone adv-clone <分身.app> [--data-dir <目录>] [--proxy <地址>] [--locale <语言>]
+      app-clone adv-clone <分身.app> [--data-dir <目录>] [--proxy <地址>] [--locale <语言>] [--app-language <语言标识>]
       app-clone register
       app-clone verify <分身.app>
       app-clone remove <分身.app>
@@ -76,7 +82,7 @@ enum CLIHelp {
     rename 修改显示名称、应用包文件名和软链接，保留分身身份与图标。
     stats 按原应用统计当前工作空间的累计成功创建数和现存分身数；删除不复用序号。
     remove 只移除工具管理的应用副本，不删除应用用户数据。
-    adv-clone 配置已有分身的环境变量；运行 app-clone adv-clone 查看详细用法。
+    adv-clone 配置已有分身的环境变量和界面语言；运行 app-clone adv-clone 查看详细用法。
     """
 
   static let en = """
@@ -92,7 +98,7 @@ enum CLIHelp {
       app-clone stats
       app-clone icon <clone.app> <image>
       app-clone rename <clone.app> <new-name>
-      app-clone adv-clone <clone.app> [--data-dir <directory>] [--proxy <url>] [--locale <locale>]
+      app-clone adv-clone <clone.app> [--data-dir <directory>] [--proxy <url>] [--locale <locale>] [--app-language <tag>]
       app-clone register
       app-clone verify <clone.app>
       app-clone remove <clone.app>
@@ -111,6 +117,6 @@ enum CLIHelp {
     rename changes the display name, bundle filename, and shortcut, preserving identity and icon.
     stats shows total creations and current clones per source app in this workspace; numbers are not reused.
     remove deletes only the managed app copy, preserving app user data.
-    adv-clone configures a managed clone's environment; run app-clone adv-clone for details.
+    adv-clone configures a managed clone's environment and interface language; run app-clone adv-clone for details.
     """
 }

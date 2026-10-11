@@ -19,7 +19,7 @@ private struct Options {
       "clone": (1, ["name", "icon"]), "icon": (2, []),
       "verify": (1, []), "remove": (1, []),
       "rename": (2, []),
-      "adv-clone": (1, ["data-dir", "proxy", "locale"]),
+      "adv-clone": (1, ["data-dir", "proxy", "locale", "app-language"]),
       "register": (0, []),
       "version": (0, []),
     ]
@@ -120,7 +120,9 @@ struct AppCloneCLI {
       } else {
         remaining.append(argument)
         index += 1
-        if ["--name", "--icon", "--workspace", "--data-dir", "--proxy", "--locale"].contains(
+        if [
+          "--name", "--icon", "--workspace", "--data-dir", "--proxy", "--locale", "--app-language",
+        ].contains(
           argument), index < arguments.count
         {
           remaining.append(arguments[index])
@@ -271,7 +273,8 @@ struct AppCloneCLI {
       let record = try await background {
         try engine.configureEnvironment(
           app: url(options.positional[0]), dataDirectory: options.values["data-dir"].map(url),
-          proxy: options.values["proxy"], locale: options.values["locale"], reset: options.reset,
+          proxy: options.values["proxy"], locale: options.values["locale"],
+          appLanguage: options.values["app-language"], reset: options.reset,
           token: token, onEvent: events)
       }
       if options.json {
@@ -283,6 +286,9 @@ struct AppCloneCLI {
         }
         if let proxy = settings.proxy { print(L10n.text(.environmentProxyLine, proxy)) }
         if let locale = settings.locale { print(L10n.text(.environmentLocaleLine, locale)) }
+        if let language = settings.appLanguage {
+          print(L10n.text(.environmentAppLanguageLine, language))
+        }
       } else {
         print(L10n.text(.environmentDisabled))
       }
