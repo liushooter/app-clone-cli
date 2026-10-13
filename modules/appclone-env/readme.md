@@ -1,13 +1,13 @@
 # app-clone 环境模块
 
-本项目的环境配置源码生成器、Mach-O 依赖插入器，以及 `libappclone_env.dylib` 的初始化代码。Swift 部分已编入 CLI，由 `adv-clone` 命令调用。
+本项目的环境配置源码生成器、Mach-O 依赖插入器，以及 `libappclone_env.dylib` 的初始化代码。Swift 部分已编入 CLI，由 `env` 命令调用。
 
 ## 命令行使用
 
 先用 `clone` 创建分身，退出分身后执行：
 
 ```sh
-./build/app-clone adv-clone ~/Applications/app-clone/wechat-work.app \
+./build/app-clone env ~/Applications/app-clone/wechat-work.app \
   --data-dir "$HOME/Library/Application Support/app-clone/data/wechat-work" \
   --proxy http://127.0.0.1:7890 \
   --locale zh_CN.UTF-8
@@ -17,7 +17,7 @@
 
 `--app-language zh-CN` 设置分身界面语言，接受 `zh-CN`、`zh-Hant`、`en`、`ja` 等语言标识，与 `--locale` 独立。配置保存在 `environment.appLanguage`。动态库每次加载时合并 `NSUserDefaults` 的临时 `NSArgumentDomain`，设置 `AppleLanguages`，不写入应用或系统的持久偏好。已有的显式 `-AppleLanguages` 启动参数优先，其他参数保留。`--reset` 后不再覆盖语言。
 
-`adv-clone <分身.app>` 查看配置；`adv-clone <分身.app> --reset` 移除动态库及依赖并重新签名，保留数据目录。可加 `--json` 读取分身记录中的 `environment`，未启用时该字段省略。
+`env <分身.app>` 查看配置；`env <分身.app> --reset` 移除动态库及依赖并重新签名，保留数据目录。可加 `--json` 读取分身记录中的 `environment`，未启用时该字段省略。
 
 设置时需要 Apple Command Line Tools 或 Xcode。CLI 使用本模块生成源码并编译双架构动态库；配置界面语言时生成 Objective-C 并链接 Foundation，否则仍使用 C。在暂存副本中插入依赖、签名并验证，再通过事务安装。失败时保留原分身和清单。源码只放在临时任务目录中，任务结束后清理。不需要手动构建或注入动态库。
 
@@ -48,7 +48,7 @@ make env-dylib
 
 加载标识为 `@executable_path/../Frameworks/libappclone_env.dylib`，对应应用的 `Contents/Frameworks/libappclone_env.dylib`。
 
-`env.c` 只保留空的 `appclone_env_init()` 入口，没有预设目录、代理或语言，加载时不设置或清除任何环境变量。`adv-clone` 根据用户传入的配置生成具体初始化代码。
+`env.c` 只保留空的 `appclone_env_init()` 入口，没有预设目录、代理或语言，加载时不设置或清除任何环境变量。`env` 根据用户传入的配置生成具体初始化代码。
 
 ## Swift 调用
 

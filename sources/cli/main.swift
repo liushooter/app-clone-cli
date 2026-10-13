@@ -20,7 +20,7 @@ private struct Options {
       "clone": (1, ["name", "icon"]), "icon": (2, []),
       "verify": (1, []), "remove": (1, []),
       "rename": (2, []),
-      "adv-clone": (1, ["data-dir", "proxy", "locale", "app-language"]),
+      "env": (1, ["data-dir", "proxy", "locale", "app-language"]),
       "register": (0, []),
       "version": (0, []),
     ]
@@ -35,9 +35,9 @@ private struct Options {
         positionalOnly = true
       } else if argument == "--json", !positionalOnly {
         json = true
-      } else if argument == "--reset", command == "adv-clone", !positionalOnly, !reset {
+      } else if argument == "--reset", command == "env", !positionalOnly, !reset {
         reset = true
-      } else if argument == "--help", command == "adv-clone", !positionalOnly, !showHelp {
+      } else if argument == "--help", command == "env", !positionalOnly, !showHelp {
         showHelp = true
       } else if argument.hasPrefix("--"), !positionalOnly {
         let key = String(argument.dropFirst(2))
@@ -53,7 +53,7 @@ private struct Options {
       }
       index += 1
     }
-    if command == "adv-clone" {
+    if command == "env" {
       guard !reset || values.keys.allSatisfy({ $0 == "workspace" }) else {
         throw CloneFailure("usage", L10n.text(.resetEnvironmentUsage))
       }
@@ -144,8 +144,8 @@ struct AppCloneCLI {
         print(CLIHelp.text)
         return
       }
-      if options.command == "adv-clone", options.showHelp {
-        print(CLIHelp.advClone)
+      if options.command == "env", options.showHelp {
+        print(CLIHelp.env)
         return
       }
       if options.command == "version" {
@@ -193,7 +193,7 @@ struct AppCloneCLI {
     let workspaceURL: URL
     if let path = options.values["workspace"] {
       workspaceURL = url(path)
-    } else if ["icon", "rename", "verify", "remove", "adv-clone", "open"].contains(options.command),
+    } else if ["icon", "rename", "verify", "remove", "env", "open"].contains(options.command),
       let path = options.positional.first
     {
       workspaceURL = try CloneEngine.workspaceRoot(for: url(path))
@@ -287,7 +287,7 @@ struct AppCloneCLI {
           token: token, onEvent: events)
       }
       try output(record)
-    case "adv-clone":
+    case "env":
       let record = try await background {
         try engine.configureEnvironment(
           app: url(options.positional[0]), dataDirectory: options.values["data-dir"].map(url),

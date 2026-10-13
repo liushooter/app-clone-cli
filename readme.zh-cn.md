@@ -64,7 +64,7 @@ tag 支持 `v0.1.0` 或 `v0.2.0-rc.1` 这样的格式，后者会标记为预发
 | `open [分身.app]` | 在 Finder 打开分身目录，或选中指定分身的真实应用副本 |
 | `icon <分身.app> <图片>` | 使用 PNG、JPEG 或 ICNS 替换图标 |
 | `rename <分身.app> <名称>` | 修改显示名称、应用包文件名和已有软链接 |
-| `adv-clone <分身.app> [--data-dir <目录>] [--proxy <地址>] [--locale <语言>] [--app-language <语言标识>]` | 查看或更新环境配置，`--reset` 移除配置 |
+| `env <分身.app> [--data-dir <目录>] [--proxy <地址>] [--locale <语言>] [--app-language <语言标识>]` | 查看或更新环境配置，`--reset` 移除配置 |
 | `verify <分身.app>` | 检查归属、签名、自定义图标和环境动态库 |
 | `remove <分身.app>` | 移除受管理的副本，保留应用用户数据 |
 | `stats` | 按原应用显示累计成功创建数和现存分身数 |
@@ -82,15 +82,15 @@ tag 支持 `v0.1.0` 或 `v0.2.0-rc.1` 这样的格式，后者会标记为预发
 先用 `clone` 创建分身，再配置这个已有副本：
 
 ```sh
-./build/app-clone adv-clone --lang zh
-./build/app-clone adv-clone ~/Applications/app-clone/微信工作.app \
+./build/app-clone env --lang zh
+./build/app-clone env ~/Applications/app-clone/微信工作.app \
   --data-dir "$HOME/Library/Application Support/app-clone/data/wechat-work" \
   --proxy http://127.0.0.1:7890 \
   --locale zh_CN.UTF-8
 
 # 查看配置，或移除配置并保留用户数据。
-./build/app-clone adv-clone ~/Applications/app-clone/微信工作.app
-./build/app-clone adv-clone ~/Applications/app-clone/微信工作.app --reset
+./build/app-clone env ~/Applications/app-clone/微信工作.app
+./build/app-clone env ~/Applications/app-clone/微信工作.app --reset
 ```
 
 各选项可单独使用，只修改传入的项，保留其他配置。`--data-dir` 创建 `home`、`tmp` 子目录并设置分身的 HOME、TMPDIR；`--proxy` 设置 HTTP_PROXY、HTTPS_PROXY，仅支持 HTTP/HTTPS 地址；`--locale` 设置 LANG、LC_ALL，而 `--lang` 控制 CLI 输出语言。加 `--json` 返回分身记录，启用后包含 `environment` 字段。
@@ -98,8 +98,8 @@ tag 支持 `v0.1.0` 或 `v0.2.0-rc.1` 这样的格式，后者会标记为预发
 使用独立的 `--app-language` 为不同分身指定界面语言，可与 `--locale` 分开设置：
 
 ```sh
-./build/app-clone adv-clone ~/Applications/app-clone/微信工作.app --app-language zh-CN
-./build/app-clone adv-clone ~/Applications/app-clone/微信个人.app --app-language en
+./build/app-clone env ~/Applications/app-clone/微信工作.app --app-language zh-CN
+./build/app-clone env ~/Applications/app-clone/微信个人.app --app-language en
 ```
 
 动态库在每次启动时将 `AppleLanguages` 写入进程的临时参数域，不写入应用或系统的持久偏好。配置保存在 `environment.appLanguage`，下次启动继续生效，直到修改或 `--reset`。显式启动参数（如 `open -a <分身.app> --args -AppleLanguages '(ja)'`）优先。应用需自带对应翻译并遵循 macOS 语言偏好；初始化在 `main()` 前执行，其他动态库或 Objective-C 初始化代码提前缓存的语言不保证改变。
@@ -120,7 +120,7 @@ tag 支持 `v0.1.0` 或 `v0.2.0-rc.1` 这样的格式，后者会标记为预发
 
 `~/Applications/app-clone/` 只存放指向副本的软链接，不搬运应用包。Finder、Spotlight 和启动台的实际显示由 macOS 控制，同名的无关文件和其他链接不会被覆盖。
 
-`--workspace <目录>` 指定独立工作空间。clone、list、stats、register 和不带路径的 open 默认使用上述目录；icon、rename、adv-clone、verify、remove 和带分身路径的 open 根据路径自动定位工作空间，也允许显式指定匹配的工作空间。自定义工作空间默认不创建应用入口，需要时运行 `register --workspace <目录>`。
+`--workspace <目录>` 指定独立工作空间。clone、list、stats、register 和不带路径的 open 默认使用上述目录；icon、rename、env、verify、remove 和带分身路径的 open 根据路径自动定位工作空间，也允许显式指定匹配的工作空间。自定义工作空间默认不创建应用入口，需要时运行 `register --workspace <目录>`。
 
 不自动迁移此前存放在其他位置的应用。新分身 Bundle ID 为 `<原应用BundleID>.<创建序号>.<uuid>`，成功创建后递增，删除不复用。兼容读取旧版清单；历史不完整时通过 `historyComplete: false` 标识。
 
@@ -155,9 +155,9 @@ make test
 
 - `sources/cli/`：命令参数、中英帮助和输出。
 - `sources/core/`：分身操作、事务、签名、图标和国际化。
-- `modules/appclone-env/`：`adv-clone` 使用的 C 源码生成器和 Mach-O 辅助代码。
+- `modules/appclone-env/`：`env` 使用的 C 源码生成器和 Mach-O 辅助代码。
 - `tests/`：集成测试和 Swift 检查。
 
-`make env-dylib` 构建只保留空初始化入口的 `build/libappclone_env.dylib`，加载时不修改环境变量。`adv-clone` 根据实际选项另行生成动态库。接口和命名见[环境模块说明](modules/appclone-env/readme.md)。
+`make env-dylib` 构建只保留空初始化入口的 `build/libappclone_env.dylib`，加载时不修改环境变量。`env` 根据实际选项另行生成动态库。接口和命名见[环境模块说明](modules/appclone-env/readme.md)。
 
 源文件名使用小写；Swift 用 `swift-format` 格式化，Python 用 `ruff format` 格式化。提交前运行完整测试，不提交构建产物、工作空间数据、密钥和本地配置。

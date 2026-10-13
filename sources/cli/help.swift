@@ -2,16 +2,16 @@ import appclonecore
 
 enum CLIHelp {
   static var text: String { L10n.language == .zh ? zh : en }
-  static var advClone: String { L10n.language == .zh ? advCloneZH : advCloneEN }
+  static var env: String { L10n.language == .zh ? envZH : envEN }
 
-  static let advCloneZH = """
+  static let envZH = """
     用法：
-      app-clone adv-clone <分身.app>
-      app-clone adv-clone <分身.app> --data-dir <目录> [--proxy <地址>] [--locale <语言>]
-      app-clone adv-clone <分身.app> --proxy http://127.0.0.1:7890
-      app-clone adv-clone <分身.app> --locale zh_CN.UTF-8
-      app-clone adv-clone <分身.app> --app-language zh-CN
-      app-clone adv-clone <分身.app> --reset
+      app-clone env <分身.app>
+      app-clone env <分身.app> --data-dir <目录> [--proxy <地址>] [--locale <语言>]
+      app-clone env <分身.app> --proxy http://127.0.0.1:7890
+      app-clone env <分身.app> --locale zh_CN.UTF-8
+      app-clone env <分身.app> --app-language zh-CN
+      app-clone env <分身.app> --reset
 
     不带设置选项时查看当前配置；只修改传入的选项，保留其他配置。
     --data-dir 创建 home、tmp 子目录，设置分身的 HOME 和 TMPDIR。
@@ -27,14 +27,14 @@ enum CLIHelp {
     下次启动生效。数据不会自动迁移，实际目录、代理和语言行为取决于应用。
     """
 
-  static let advCloneEN = """
+  static let envEN = """
     Usage:
-      app-clone adv-clone <clone.app>
-      app-clone adv-clone <clone.app> --data-dir <directory> [--proxy <url>] [--locale <locale>]
-      app-clone adv-clone <clone.app> --proxy http://127.0.0.1:7890
-      app-clone adv-clone <clone.app> --locale zh_CN.UTF-8
-      app-clone adv-clone <clone.app> --app-language zh-CN
-      app-clone adv-clone <clone.app> --reset
+      app-clone env <clone.app>
+      app-clone env <clone.app> --data-dir <directory> [--proxy <url>] [--locale <locale>]
+      app-clone env <clone.app> --proxy http://127.0.0.1:7890
+      app-clone env <clone.app> --locale zh_CN.UTF-8
+      app-clone env <clone.app> --app-language zh-CN
+      app-clone env <clone.app> --reset
 
     Without setting options, show the current configuration. Updates preserve omitted settings.
     --data-dir creates home and tmp subdirectories and sets HOME and TMPDIR for the clone.
@@ -64,7 +64,7 @@ enum CLIHelp {
       app-clone stats
       app-clone icon <分身.app> <图片>
       app-clone rename <分身.app> <新名称>
-      app-clone adv-clone <分身.app> [--data-dir <目录>] [--proxy <地址>] [--locale <语言>] [--app-language <语言标识>]
+      app-clone env <分身.app> [--data-dir <目录>] [--proxy <地址>] [--locale <语言>] [--app-language <语言标识>]
       app-clone register
       app-clone verify <分身.app>
       app-clone remove <分身.app>
@@ -85,7 +85,7 @@ enum CLIHelp {
     rename 修改显示名称、应用包文件名和软链接，保留分身身份与图标。
     stats 按原应用统计当前工作空间的累计成功创建数和现存分身数；删除不复用序号。
     remove 只移除工具管理的应用副本，不删除应用用户数据。
-    adv-clone 配置已有分身的环境变量和界面语言；运行 app-clone adv-clone 查看详细用法。
+    env 配置已有分身的环境变量和界面语言；运行 app-clone env 查看详细用法。
     """
 
   static let en = """
@@ -102,7 +102,7 @@ enum CLIHelp {
       app-clone stats
       app-clone icon <clone.app> <image>
       app-clone rename <clone.app> <new-name>
-      app-clone adv-clone <clone.app> [--data-dir <directory>] [--proxy <url>] [--locale <locale>] [--app-language <tag>]
+      app-clone env <clone.app> [--data-dir <directory>] [--proxy <url>] [--locale <locale>] [--app-language <tag>]
       app-clone register
       app-clone verify <clone.app>
       app-clone remove <clone.app>
@@ -123,6 +123,6 @@ enum CLIHelp {
     rename changes the display name, bundle filename, and shortcut, preserving identity and icon.
     stats shows total creations and current clones per source app in this workspace; numbers are not reused.
     remove deletes only the managed app copy, preserving app user data.
-    adv-clone configures a managed clone's environment and interface language; run app-clone adv-clone for details.
+    env configures a managed clone's environment and interface language; run app-clone env for details.
     """
 }

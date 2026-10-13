@@ -67,7 +67,7 @@ You can find your chip or processor in the Apple menu → About This Mac. Place 
 | `open [clone.app]` | Open the clones directory in Finder, or reveal a specific clone's actual bundle |
 | `icon <clone.app> <image>` | Replace the icon using PNG, JPEG, or ICNS |
 | `rename <clone.app> <name>` | Change the display name, bundle filename, and existing shortcut |
-| `adv-clone <clone.app> [--data-dir <dir>] [--proxy <url>] [--locale <locale>] [--app-language <tag>]` | View or update a managed clone's environment; `--reset` removes the configuration |
+| `env <clone.app> [--data-dir <dir>] [--proxy <url>] [--locale <locale>] [--app-language <tag>]` | View or update a managed clone's environment; `--reset` removes the configuration |
 | `verify <clone.app>` | Check ownership, signature, custom icon, and environment library |
 | `remove <clone.app>` | Remove the managed copy, preserving app user data |
 | `stats` | Show total creations and current clone counts per source app |
@@ -85,15 +85,15 @@ Quit a clone before changing its icon, environment, or name, or removing it. Ren
 Create a clone with `clone` first, then configure that managed copy:
 
 ```sh
-./build/app-clone adv-clone --lang en
-./build/app-clone adv-clone ~/Applications/app-clone/wechat-work.app \
+./build/app-clone env --lang en
+./build/app-clone env ~/Applications/app-clone/wechat-work.app \
   --data-dir "$HOME/Library/Application Support/app-clone/data/wechat-work" \
   --proxy http://127.0.0.1:7890 \
   --locale zh_CN.UTF-8
 
 # Read the current settings, or remove them while keeping user data.
-./build/app-clone adv-clone ~/Applications/app-clone/wechat-work.app
-./build/app-clone adv-clone ~/Applications/app-clone/wechat-work.app --reset
+./build/app-clone env ~/Applications/app-clone/wechat-work.app
+./build/app-clone env ~/Applications/app-clone/wechat-work.app --reset
 ```
 
 Options can be used separately; omitted settings are preserved. `--data-dir` creates `home` and `tmp` subdirectories and sets `HOME` and `TMPDIR`. `--proxy` sets `HTTP_PROXY` and `HTTPS_PROXY`; only HTTP/HTTPS proxy URLs are supported. `--locale` sets `LANG` and `LC_ALL`, while `--lang` controls the CLI's own output. `--json` returns the clone record, including `environment` when enabled.
@@ -101,8 +101,8 @@ Options can be used separately; omitted settings are preserved. `--data-dir` cre
 Use `--app-language` to give each clone its own interface language, independently of `--locale`:
 
 ```sh
-./build/app-clone adv-clone ~/Applications/app-clone/wechat-work.app --app-language zh-CN
-./build/app-clone adv-clone ~/Applications/app-clone/wechat-personal.app --app-language en
+./build/app-clone env ~/Applications/app-clone/wechat-work.app --app-language zh-CN
+./build/app-clone env ~/Applications/app-clone/wechat-personal.app --app-language en
 ```
 
 The library sets `AppleLanguages` in the process's temporary argument domain at launch, without writing app or system preferences. The setting is stored as `environment.appLanguage` and reapplied each launch until changed or reset. Explicit launch arguments such as `open -a <clone.app> --args -AppleLanguages '(ja)'` take priority. The app must include the requested translation and honor macOS language preferences. Initialization runs before `main()`; code in other libraries or Objective-C initializers may have already cached a language.
@@ -125,7 +125,7 @@ pending.json  Recovery journal, present only during a transaction
 
 `~/Applications/app-clone/` contains symlinks to the copies. App bundles stay in the workspace. macOS controls their appearance in Finder, Spotlight, and Launchpad. Existing unrelated files and shortcuts are never overwritten.
 
-`--workspace <directory>` selects a separate workspace. `clone`, `list`, `stats`, `register`, and `open` without a path otherwise use the default workspace. `icon`, `rename`, `adv-clone`, `verify`, `remove`, and `open` with a clone path locate the workspace from that path, including symlinks. An explicit workspace must match the managed clone.
+`--workspace <directory>` selects a separate workspace. `clone`, `list`, `stats`, `register`, and `open` without a path otherwise use the default workspace. `icon`, `rename`, `env`, `verify`, `remove`, and `open` with a clone path locate the workspace from that path, including symlinks. An explicit workspace must match the managed clone.
 
 Custom workspaces do not automatically publish application shortcuts. Run `register --workspace <directory>` to create them. Existing applications in other locations are not automatically moved or migrated.
 
@@ -165,10 +165,10 @@ The suite includes 51 CLI integration tests plus Swift process, localization, lo
 ```text
 sources/cli/          Argument parsing, bilingual help, text and JSON output
 sources/core/         Clone operations, transactions, signing, icons, localization
-modules/appclone-env/  C source generator and Mach-O helpers used by adv-clone
+modules/appclone-env/  C source generator and Mach-O helpers used by env
 tests/                Integration tests and Swift checks
 ```
 
-`make env-dylib` builds `build/libappclone_env.dylib` with an empty initializer that leaves environment variables unchanged. The `adv-clone` command generates a separate library from the selected settings. See the [environment module guide](modules/appclone-env/readme.md) for its API and naming.
+`make env-dylib` builds `build/libappclone_env.dylib` with an empty initializer that leaves environment variables unchanged. The `env` command generates a separate library from the selected settings. See the [environment module guide](modules/appclone-env/readme.md) for its API and naming.
 
 Keep source filenames lowercase. Format Swift with `swift-format` and Python with `ruff format`; run the full suite before submitting a change. Generated binaries, workspace data, local configuration, and credentials do not belong in Git.

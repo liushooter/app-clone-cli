@@ -236,25 +236,23 @@ int main(void) {
         self.assertEqual(result.returncode, 0, result.stderr)
         return dict(line.split("=", 1) for line in result.stdout.splitlines())
 
-    def test_adv_clone_help_and_read_only_status(self):
+    def test_env_help_and_read_only_status(self):
         for language, phrase in [("zh", "用法："), ("en", "Usage:")]:
             for suffix in [[], ["--help"]]:
-                result = self.localized_cli("adv-clone", *suffix, "--lang", language)
+                result = self.localized_cli("env", *suffix, "--lang", language)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn(phrase, result.stdout)
                 self.assertIn("--reset", result.stdout)
                 self.assertIn("--app-language", result.stdout)
         record = self.create(icon=False)
         before = digest_tree(self.root)
-        self.assertEqual(
-            self.cli("adv-clone", self.app(record), workspace=False), record
-        )
+        self.assertEqual(self.cli("env", self.app(record), workspace=False), record)
         self.assertEqual(digest_tree(self.root), before)
         self.assertEqual(
-            self.cli("adv-clone", self.source, success=False)["code"], "not_managed"
+            self.cli("env", self.source, success=False)["code"], "not_managed"
         )
 
-    def test_adv_clone_environment_applies_updates_and_resets(self):
+    def test_env_environment_applies_updates_and_resets(self):
         self.use_environment_fixture()
         record = self.create(icon=False)
         stats = self.cli("stats")
@@ -262,7 +260,7 @@ int main(void) {
         baseline = self.run_environment_fixture(app)
         data = self.directory / '数据 "quoted" \\ dir'
         configured = self.cli(
-            "adv-clone",
+            "env",
             app,
             "--data-dir",
             data,
@@ -287,7 +285,7 @@ int main(void) {
         self.assertEqual(values["LC_ALL"], values["LANG"])
         self.assertEqual(values["APP_CLONE_ORIGINAL_HOME"], baseline["HOME"])
         self.cli("verify", app)
-        updated = self.cli("adv-clone", app, "--proxy", "https://localhost:8888")
+        updated = self.cli("env", app, "--proxy", "https://localhost:8888")
         self.assertEqual(updated["environment"]["dataDirectory"], str(data))
         self.assertEqual(updated["environment"]["locale"], "zh_CN.UTF-8")
         dependencies = subprocess.run(
@@ -311,7 +309,7 @@ int main(void) {
         )
         saved = data / "home" / "user-data.txt"
         saved.write_text("preserve me")
-        reset = self.cli("adv-clone", app, "--reset")
+        reset = self.cli("env", app, "--reset")
         self.assertNotIn("environment", reset)
         self.assertFalse((app / "Contents/Frameworks/libappclone_env.dylib").exists())
         self.assertEqual(self.run_environment_fixture(app), baseline)
@@ -321,7 +319,7 @@ int main(void) {
         self.cli("verify", app)
         self.assert_clean()
 
-    def test_adv_clone_app_languages_are_isolated_and_reset(self):
+    def test_env_app_languages_are_isolated_and_reset(self):
         self.use_environment_fixture()
         chinese = self.app(self.create(icon=False, name="中文分身"))
         japanese = self.app(self.create(icon=False, name="日文分身"))
@@ -331,7 +329,7 @@ int main(void) {
             (chinese, "zh-CN", "Chinese"),
             (japanese, "ja", "Japanese"),
         ]:
-            configured = self.cli("adv-clone", app, "--app-language", language)
+            configured = self.cli("env", app, "--app-language", language)
             self.assertEqual(configured["environment"]["appLanguage"], language)
             for _ in range(2):
                 values = self.run_environment_fixture(app)
@@ -348,27 +346,27 @@ int main(void) {
         self.assertEqual(overridden["GREETING"], "Hello")
         self.assertEqual(overridden["APPLE_LANGUAGE"], "en")
         self.assertEqual(self.run_environment_fixture(chinese)["GREETING"], "Chinese")
-        updated = self.cli("adv-clone", chinese, "--locale", "en_US.UTF-8")
+        updated = self.cli("env", chinese, "--locale", "en_US.UTF-8")
         self.assertEqual(updated["environment"]["appLanguage"], "zh-CN")
         self.assertEqual(self.run_environment_fixture(chinese)["GREETING"], "Chinese")
-        self.cli("adv-clone", chinese, "--app-language", "en")
+        self.cli("env", chinese, "--app-language", "en")
         values = self.run_environment_fixture(chinese)
         self.assertEqual(values["GREETING"], "Hello")
         self.assertEqual(values["LANG"], "en_US.UTF-8")
-        status = self.localized_cli("adv-clone", chinese, "--lang", "zh")
+        status = self.localized_cli("env", chinese, "--lang", "zh")
         self.assertEqual(status.returncode, 0, status.stderr)
         self.assertIn("应用界面语言：en", status.stdout)
-        self.cli("adv-clone", chinese, "--reset")
+        self.cli("env", chinese, "--reset")
         self.assertEqual(self.run_environment_fixture(chinese), baseline)
         self.assertEqual(self.run_environment_fixture(japanese)["GREETING"], "Japanese")
         self.assertEqual(digest_tree(self.source), self.original)
         self.assert_clean()
 
-    def test_adv_clone_survives_rename_icon_and_removal(self):
+    def test_env_survives_rename_icon_and_removal(self):
         self.use_environment_fixture()
         record = self.create(icon=False)
         data = self.root / "data" / record["id"]
-        configured = self.cli("adv-clone", self.app(record), "--data-dir", data)
+        configured = self.cli("env", self.app(record), "--data-dir", data)
         renamed = self.cli("rename", self.app(configured), "新名字")
         changed = self.cli("icon", self.app(renamed), self.red)
         self.assertEqual(changed["environment"]["dataDirectory"], str(data))
@@ -381,7 +379,7 @@ int main(void) {
         self.cli("remove", self.app(changed))
         self.assertEqual(saved.read_text(), "preserve me")
 
-    def test_adv_clone_rejects_invalid_configuration_without_mutation(self):
+    def test_env_rejects_invalid_configuration_without_mutation(self):
         record = self.create(icon=False)
         app = self.app(record)
         before = digest_tree(self.root)
@@ -404,19 +402,19 @@ int main(void) {
         ]:
             with self.subTest(options=options):
                 self.assertEqual(
-                    self.cli("adv-clone", app, *options, success=False)["code"], code
+                    self.cli("env", app, *options, success=False)["code"], code
                 )
                 self.assertEqual(digest_tree(self.root), before)
         directory = self.directory / "linked-data"
         directory.mkdir()
         (directory / "home").symlink_to(self.directory, target_is_directory=True)
         self.assertEqual(
-            self.cli("adv-clone", app, "--data-dir", directory, success=False)["code"],
+            self.cli("env", app, "--data-dir", directory, success=False)["code"],
             "invalid_path",
         )
         self.assertEqual(digest_tree(self.root), before)
 
-    def test_adv_clone_compile_failure_preserves_installed_clone(self):
+    def test_env_compile_failure_preserves_installed_clone(self):
         self.use_environment_fixture()
         record = self.create(icon=False)
         before = digest_tree(self.root)
@@ -424,7 +422,7 @@ int main(void) {
         result = subprocess.run(
             [
                 str(CLI),
-                "adv-clone",
+                "env",
                 str(self.app(record)),
                 "--data-dir",
                 str(data),
@@ -441,7 +439,7 @@ int main(void) {
         self.assertEqual(digest_tree(self.root), before)
         self.assert_clean()
 
-    def test_adv_clone_rejects_unmanaged_library_and_unsupported_executable(self):
+    def test_env_rejects_unmanaged_library_and_unsupported_executable(self):
         record = self.create(icon=False)
         app = self.app(record)
         library = app / "Contents/Frameworks/libappclone_env.dylib"
@@ -449,7 +447,7 @@ int main(void) {
         library.write_bytes(b"unmanaged library")
         before = digest_tree(self.root)
         self.assertEqual(
-            self.cli("adv-clone", app, "--locale", "C", success=False)["code"],
+            self.cli("env", app, "--locale", "C", success=False)["code"],
             "environment_conflict",
         )
         self.assertEqual(digest_tree(self.root), before)
@@ -457,7 +455,7 @@ int main(void) {
         (app / "Contents/MacOS/fixture").write_text("#!/bin/sh\nexit 0\n")
         before = digest_tree(self.root)
         self.assertEqual(
-            self.cli("adv-clone", app, "--locale", "C", success=False)["code"],
+            self.cli("env", app, "--locale", "C", success=False)["code"],
             "unsupported_macho",
         )
         self.assertEqual(digest_tree(self.root), before)
