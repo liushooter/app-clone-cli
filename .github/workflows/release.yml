@@ -69,8 +69,8 @@ jobs:
             test "$(./app-clone --version)" = "$version"
             ./app-clone help --lang en
             ./app-clone help --lang zh
-            ./app-clone adv-clone --lang en
-            ./app-clone adv-clone --lang zh
+            ./app-clone env --lang en
+            ./app-clone env --lang zh
             ./app-clone doctor
           )
           git diff --exit-code
@@ -108,6 +108,10 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" dist/*.tar.gz dist/sha256sums.txt --clobber
+            exit 0
+          fi
           flags=()
           if [[ "$RELEASE_TAG" == *-* ]]; then
             flags+=(--prerelease)

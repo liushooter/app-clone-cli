@@ -33,6 +33,6 @@ jobs:
           ./build/app-clone --version --json
           ./build/app-clone help --lang en
           ./build/app-clone help --lang zh
-          ./build/app-clone adv-clone --lang en
-          ./build/app-clone adv-clone --lang zh
+          ./build/app-clone env --lang en
+          ./build/app-clone env --lang zh
           git diff --exit-code
