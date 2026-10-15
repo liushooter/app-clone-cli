@@ -152,6 +152,10 @@ The core copies the source into staging, assigns the clone identity and name, ap
 
 `clone` / `create` do not support system apps such as Maps, Finder, and Safari. Before creating a workspace or copying files, the tool resolves symlinks and rejects apps whose real path is under `/System` or `/Library/Apple/System`, or whose bundle directory or main executable carries the `restricted` system-protection flag. The error is "Cloning system apps is not supported", with JSON code `unsupported_system_app`. `inspect` can still read system app metadata. A `com.apple.*` Bundle ID alone does not trigger rejection.
 
+The shared preflight also rejects `ru.keepcoder.Telegram` (`blocked_application`), iPhone/iPad and iOS simulator apps (`unsupported_ios_app`), and Electron apps, including renamed frameworks (`unsupported_electron_app`). Electron detection only reports unsupported apps; it does not implement cloning compatibility.
+
+Apps exceeding 5 GB (5,000,000,000 bytes) are rejected with `application_too_large`. Available destination space must cover twice the estimated app size plus 1 GB; otherwise the command returns `insufficient_disk_space`. Hidden files, nested bundles, and sparse files count toward the estimate. Incomplete size or capacity reads also stop the operation. Creation, renaming, icon replacement, and environment changes share the checks. Rebuilds check the original Bundle ID and preserve the installed clone and catalog when rejected. Read-only queries and removal remain available; `inspect` does not imply compatibility. See the [preflight design](docs/preflight.md) (Chinese).
+
 Cloning changes the app's identity and signature. Some apps may refuse to run or may still share data through their own storage conventions. Separate login sessions and data isolation depend on the app. This tool does not migrate accounts or app data. It runs only while a command is active, with no background service or idle polling.
 
 ## Development
@@ -160,7 +164,7 @@ Cloning changes the app's identity and signature. Some apps may refuse to run or
 make test
 ```
 
-The suite includes 51 CLI integration tests plus Swift process, localization, location, symlink, and environment module checks. Fixtures include a signed universal app used to test injected environment variables, updates, reset, and failure preservation. Tests also cover rejection of system apps and their symlink entries. GitHub Actions builds and tests on macOS and checks the release binary.
+The suite includes 57 CLI integration tests plus Swift process, localization, location, symlink, environment module, and preflight checks. Fixtures include a signed universal app used to test injected environment variables, updates, reset, and failure preservation. Tests also cover the blocklist, iOS, system apps, renamed Electron frameworks, app size, and disk capacity. GitHub Actions builds and tests on macOS and checks the release binary.
 
 ```text
 sources/cli/          Argument parsing, bilingual help, text and JSON output

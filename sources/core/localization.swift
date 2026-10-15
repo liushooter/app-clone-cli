@@ -72,6 +72,15 @@ public enum L10n {
     case invalidBundle
     case notExecutable
     case unsupportedSystemApp
+    case unsupportedIOSApp
+    case unsupportedElectronApp
+    case blockedApplication
+    case storageProgress
+    case applicationTooLarge
+    case applicationSizeUnavailable
+    case diskCapacityUnavailable
+    case insufficientDiskSpace
+    case installationDirectoryUnavailable
     case clonePathRequired
     case workspaceNotManaged
     case inspectProgress
@@ -146,6 +155,30 @@ public enum L10n {
     switch message {
     case .unsupportedSystemApp:
       pair = ("不支持克隆系统应用：{}", "Cloning system apps is not supported: {}")
+    case .unsupportedIOSApp:
+      pair = (
+        "不支持克隆 iPhone 或 iPad 应用。请选择 macOS 应用。",
+        "Cloning iPhone or iPad apps is not supported. Choose a macOS app."
+      )
+    case .unsupportedElectronApp:
+      pair = ("不支持克隆 Electron 框架应用。", "Cloning Electron apps is not supported.")
+    case .blockedApplication:
+      pair = ("暂不支持克隆此应用（{}）。", "Cloning this app is not currently supported ({}).")
+    case .storageProgress:
+      pair = ("正在检查应用大小和磁盘空间…", "Checking app size and disk space…")
+    case .applicationTooLarge:
+      pair = ("应用大小超过 {}，不支持克隆。", "The app exceeds {} and cannot be cloned.")
+    case .applicationSizeUnavailable:
+      pair = ("无法完整读取应用大小：{}", "Unable to determine the full app size: {}")
+    case .diskCapacityUnavailable:
+      pair = ("无法读取磁盘可用空间：{}", "Unable to determine available disk space: {}")
+    case .insufficientDiskSpace:
+      pair = (
+        "磁盘空间不足：{}。需要 {}，当前可用 {}。",
+        "Insufficient disk space at {}. Required: {}; available: {}."
+      )
+    case .installationDirectoryUnavailable:
+      pair = ("分身保存目录不可用：{}", "The clone installation directory is unavailable: {}")
     case .openedLocation:
       pair = ("已在 Finder 中打开位置：{}", "Opened location in Finder: {}")
     case .invalidProxy:

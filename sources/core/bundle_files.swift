@@ -136,12 +136,17 @@ enum BundleFiles {
 }
 
 public enum AppInspector {
-  public static func inspect(_ path: URL) throws -> AppDescriptor {
+  static func applicationURL(_ path: URL) throws -> URL {
     let app = BundleFiles.canonical(path)
     guard app.pathExtension.lowercased() == "app" else {
       throw CloneFailure("not_app", L10n.text(.notApp))
     }
     try BundleFiles.requireRegular(app, directory: true)
+    return app
+  }
+
+  public static func inspect(_ path: URL) throws -> AppDescriptor {
+    let app = try applicationURL(path)
     try BundleFiles.requireRegular(app.appendingPathComponent("Contents"), directory: true)
     try BundleFiles.requireRegular(app.appendingPathComponent("Contents/MacOS"), directory: true)
     let plist = try BundleFiles.readPlist(BundleFiles.plistURL(app))

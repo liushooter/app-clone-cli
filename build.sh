@@ -68,6 +68,10 @@ if [[ "$mode" == test ]]; then
     tests/core_checks.swift -o build/core-checks
   ./build/core-checks
   "$compiler" "${flags[@]}" -parse-as-library -I build -L build -lappclonecore \
+    tests/preflight_checks.swift tests/platform_checks.swift tests/electron_checks.swift \
+    -o build/preflight-checks
+  ./build/preflight-checks
+  "$compiler" "${flags[@]}" -parse-as-library -I build -L build -lappclonecore \
     tests/application_link_checks.swift -o build/application-link-checks
   ./build/application-link-checks
   "$compiler" "${flags[@]}" -parse-as-library -I build -L build -lappclonecore \

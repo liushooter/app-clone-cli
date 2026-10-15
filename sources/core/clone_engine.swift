@@ -4,6 +4,7 @@ import Foundation
 
 public struct CloneEngine: Sendable {
   public let root: URL
+  private let preflight: ClonePreflight
 
   public static var defaultRoot: URL {
     FileManager.default.homeDirectoryForCurrentUser
@@ -46,7 +47,12 @@ public struct CloneEngine: Sendable {
   }
 
   public init(root: URL = Self.defaultRoot) {
+    self.init(root: root, preflight: ClonePreflight())
+  }
+
+  init(root: URL, preflight: ClonePreflight) {
     self.root = BundleFiles.canonical(root)
+    self.preflight = preflight
   }
 
   public func list() throws -> [CloneRecord] {
@@ -90,14 +96,8 @@ public struct CloneEngine: Sendable {
   ) throws -> CloneRecord {
     try token.check()
     let name = try validatedName(name)
-    onEvent(CloneEvent("inspect", L10n.text(.inspectProgress)))
-    let descriptor = try AppInspector.inspect(source)
-    if try BundleFiles.isSystemApplication(
-      URL(fileURLWithPath: descriptor.path), executable: descriptor.executable)
-    {
-      throw CloneFailure(
-        "unsupported_system_app", L10n.text(.unsupportedSystemApp, descriptor.path))
-    }
+    let inspection = try preflight.inspectSource(source, token: token, onEvent: onEvent)
+    let descriptor = inspection.application
     try validateSourceLocation(URL(fileURLWithPath: descriptor.path))
     let workspace = Workspace(root: root)
     return try workspace.withLock {
@@ -123,7 +123,7 @@ public struct CloneEngine: Sendable {
         source: descriptor, createdAt: Date(), modifiedAt: Date(),
         customIconSHA256: nil, compatibility: "unverified")
       return try build(
-        record: record, from: URL(fileURLWithPath: descriptor.path), icon: icon,
+        record: record, from: inspection, icon: icon,
         workspace: workspace, before: before,
         token: token, onEvent: onEvent)
     }
@@ -140,8 +140,10 @@ public struct CloneEngine: Sendable {
       let app = try workspace.appURL(record)
       try BundleFiles.checkOwnership(app, record: record)
       try ensureStopped(app)
+      let inspection = try preflight.inspectSource(
+        app, originalBundleID: record.source.bundleID, token: token, onEvent: onEvent)
       return try build(
-        record: record, from: app, icon: icon,
+        record: record, from: inspection, icon: icon,
         workspace: workspace, before: before, token: token, onEvent: onEvent)
     }
   }
@@ -181,8 +183,10 @@ public struct CloneEngine: Sendable {
           settings, workspace: root, source: URL(fileURLWithPath: record.source.path))
         record.environment = settings
       }
+      let inspection = try preflight.inspectSource(
+        app, originalBundleID: record.source.bundleID, token: token, onEvent: onEvent)
       return try build(
-        record: record, from: app, icon: nil, workspace: workspace, before: before,
+        record: record, from: inspection, icon: nil, workspace: workspace, before: before,
         token: token, onEvent: onEvent, updateEnvironment: true)
     }
   }
@@ -211,8 +215,10 @@ public struct CloneEngine: Sendable {
         try links.validateDestination(for: workspace.appURL(record), replacing: app)
       }
       onEvent(CloneEvent("rename", L10n.text(.renameProgress)))
+      let inspection = try preflight.inspectSource(
+        app, originalBundleID: original.source.bundleID, token: token, onEvent: onEvent)
       return try build(
-        record: record, from: app, icon: nil,
+        record: record, from: inspection, icon: nil,
         workspace: workspace, before: before, token: token, onEvent: onEvent)
     }
   }
@@ -275,11 +281,14 @@ public struct CloneEngine: Sendable {
   }
 
   private func build(
-    record original: CloneRecord, from source: URL, icon: URL?,
+    record original: CloneRecord, from inspection: CloneSourceInspection, icon: URL?,
     workspace: Workspace, before: Catalog, token: CancellationToken,
     onEvent: EventHandler, updateEnvironment: Bool = false
   ) throws -> CloneRecord {
     try token.check()
+    try preflight.checkDestination(
+      for: inspection, workspace: workspace, token: token, onEvent: onEvent)
+    let source = URL(fileURLWithPath: inspection.application.path)
     let fm = FileManager.default
     let operationID = UUID().uuidString.lowercased()
     let job = try workspace.jobURL(operationID)

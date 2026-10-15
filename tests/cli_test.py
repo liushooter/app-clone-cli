@@ -746,6 +746,149 @@ int main(void) {
                         self.assertNotIn("[copy]", result.stderr)
                         self.assertFalse(self.root.exists())
 
+    def test_blocked_bundle_ids_are_rejected_before_reading_executable(self):
+        executable = self.source / "Contents/MacOS/fixture"
+        executable.write_bytes(b"\xcf\xfa\xed\xfe")
+        for bundle_id in ["ru.keepcoder.Telegram", "RU.KEEPCODER.TELEGRAM"]:
+            self.info["CFBundleIdentifier"] = bundle_id
+            self.plist.write_bytes(plistlib.dumps(self.info))
+            original = digest_tree(self.source)
+            for command, language, phrase in [
+                ("clone", "zh", "暂不支持克隆此应用"),
+                ("create", "en", "Cloning this app is not currently supported"),
+            ]:
+                error = self.cli(
+                    command,
+                    self.source,
+                    "--name",
+                    "blocked",
+                    "--lang",
+                    language,
+                    success=False,
+                )
+                self.assertEqual(error["code"], "blocked_application")
+                self.assertIn(phrase, error["message"])
+                self.assertIn(bundle_id, error["message"])
+                self.assertFalse(self.root.exists())
+                self.assertEqual(digest_tree(self.source), original)
+            self.assertEqual(self.cli("inspect", self.source)["bundleID"], bundle_id)
+
+    def test_blocklist_does_not_match_name_or_bundle_id_prefix(self):
+        self.info["CFBundleName"] = "Telegram"
+        self.info["CFBundleDisplayName"] = "Telegram"
+        for bundle_id in [
+            "org.telegram.desktop",
+            "ru.keepcoder.TelegramOther",
+            "ru.keepcoder.Telegram.helper",
+        ]:
+            self.info["CFBundleIdentifier"] = bundle_id
+            self.plist.write_bytes(plistlib.dumps(self.info))
+            record = self.create(icon=False, name=bundle_id)
+            self.assertEqual(record["source"]["bundleID"], bundle_id)
+            self.cli("verify", self.app(record))
+
+    def add_electron_framework(self, app, name):
+        framework = app / "Contents/Frameworks" / f"{name}.framework"
+        version = framework / "Versions/A"
+        (version / "Resources").mkdir(parents=True)
+        (version / "Resources/Info.plist").write_bytes(
+            plistlib.dumps(
+                {
+                    "CFBundleExecutable": "runtime",
+                    "CFBundlePackageType": "FMWK",
+                }
+            )
+        )
+        binary = b"\xcf\xfa\xed\xfe"
+        if name != "Electron Framework":
+            binary += b"dL7pKGdnNz796PbbjQWNKmHXBZaB9tsX\x01\x0301r"
+        (version / "runtime").write_bytes(binary)
+        (framework / "Versions/Current").symlink_to("A")
+        (framework / "Resources").symlink_to("Versions/Current/Resources")
+        (framework / "runtime").symlink_to("Versions/Current/runtime")
+        return framework
+
+    def test_electron_standard_and_renamed_frameworks_are_rejected(self):
+        alias = self.directory / "electron-link.app"
+        alias.symlink_to(self.source)
+        for name in ["Electron Framework", "QQNT", "renamed-runtime"]:
+            framework = self.add_electron_framework(self.source, name)
+            original = digest_tree(self.source)
+            for entry in [self.source, alias]:
+                for command, language, phrase in [
+                    ("clone", "zh", "不支持克隆 Electron 框架应用"),
+                    ("create", "en", "Cloning Electron apps is not supported"),
+                ]:
+                    args = [
+                        command,
+                        entry,
+                        "--name",
+                        "electron",
+                        "--lang",
+                        language,
+                        "--icon",
+                        self.directory / "missing.png",
+                    ]
+                    error = self.cli(*args, success=False)
+                    self.assertEqual(error["code"], "unsupported_electron_app")
+                    self.assertIn(phrase, error["message"])
+                    result = self.localized_cli(*args, "--workspace", self.root)
+                    self.assertEqual(result.returncode, 1)
+                    self.assertEqual(result.stdout, "")
+                    self.assertIn(phrase, result.stderr)
+                    self.assertNotIn("[copy]", result.stderr)
+                    self.assertFalse(self.root.exists())
+                    self.assertEqual(digest_tree(self.source), original)
+                self.assertEqual(self.cli("inspect", entry)["path"], str(self.source))
+            shutil.rmtree(framework)
+
+    def test_electron_rebuild_rejection_preserves_clone_and_catalog(self):
+        record = self.create(icon=False)
+        app = self.app(record)
+        self.add_electron_framework(app, "QQNT")
+        before = digest_tree(self.root)
+        data = self.directory / "unused-data"
+        for args in [
+            ["rename", app, "changed"],
+            ["icon", app, self.red],
+            ["env", app, "--data-dir", data],
+        ]:
+            self.assertEqual(
+                self.cli(*args, success=False)["code"], "unsupported_electron_app"
+            )
+            self.assertEqual(digest_tree(self.root), before)
+            self.assertFalse(data.exists())
+            self.assert_clean()
+        self.assertEqual(self.cli("env", app), record)
+        self.assertEqual(self.cli("list"), [record])
+        self.cli("remove", app)
+        self.assertFalse(app.exists())
+
+    def test_ios_wrapper_is_rejected_before_creating_workspace(self):
+        source = self.directory / "ios.app"
+        inner = source / "Wrapper/mobile.app"
+        inner.mkdir(parents=True)
+        (inner / "Info.plist").write_bytes(
+            plistlib.dumps(
+                {
+                    "CFBundleIdentifier": "local.mobile.fixture",
+                    "CFBundleSupportedPlatforms": ["iPhoneOS"],
+                }
+            )
+        )
+        error = self.cli("clone", source, "--name", "ios", success=False)
+        self.assertEqual(error["code"], "unsupported_ios_app")
+        self.assertFalse(self.root.exists())
+
+    def test_oversized_sparse_app_is_rejected_before_creating_workspace(self):
+        payload = self.source / "Contents/Resources/large"
+        with payload.open("wb") as file:
+            file.truncate(5_000_000_001)
+        error = self.cli("clone", self.source, "--name", "large", success=False)
+        self.assertEqual(error["code"], "application_too_large")
+        self.assertEqual(payload.stat().st_size, 5_000_000_001)
+        self.assertFalse(self.root.exists())
+
     def test_system_app_rejection_preserves_existing_workspace(self):
         source = Path("/System/Applications/Maps.app")
         if not source.exists():
