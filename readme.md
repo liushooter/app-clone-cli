@@ -30,7 +30,9 @@ git tag -a v0.2.0 -m "Release v0.2.0"
 git push origin v0.2.0
 ```
 
-Tags may look like `v0.1.0` or `v0.2.0-rc.1`; the latter produces a prerelease. Publishing uses the built-in `GITHUB_TOKEN`, with no additional release secret required. Failed runs can be rerun in Actions; use a new version and tag for changes to an already published release.
+Tags may look like `v0.1.0` or `v0.2.0-rc.1`; the latter produces a prerelease. Publishing uses the built-in `GITHUB_TOKEN`, with no additional release secret required.
+
+To republish an existing release, run `./republish.sh` (or `./republish.sh v0.2.0`). Install and authenticate GitHub CLI (`gh`) first, and commit any workspace changes. The script updates the remote tag to HEAD; if the commit is unchanged, it reruns or waits for the existing workflow. It waits for both architectures to pass tests, build, and upload assets, downloads and checks the archives, and verifies that the Release title, description, and publication state remain unchanged. The default version comes from `sources/core/version.swift`. Failures return a nonzero status; fix the cause and run again.
 
 Choose the archive for your Mac's chip, then extract it to run the tool. For version `v0.2.0`:
 
