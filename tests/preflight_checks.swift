@@ -68,7 +68,11 @@ struct PreflightChecks {
   private static func checkBlocklist() throws {
     let fixture = try Fixture()
     defer { fixture.cleanup() }
-    for id in ["ru.keepcoder.Telegram", "RU.KEEPCODER.TELEGRAM"] {
+    for id in [
+      "ru.keepcoder.Telegram", "RU.KEEPCODER.TELEGRAM",
+      "com.larksuite.larkApp", "COM.LARKSUITE.LARKAPP",
+      "com.electron.lark", "COM.ELECTRON.LARK",
+    ] {
       try fixture.setBundleID(id)
       try expectFailure("blocked_application") {
         _ = try fixture.engine.create(source: fixture.source, name: "blocked")
@@ -78,6 +82,8 @@ struct PreflightChecks {
     }
     for id in [
       "org.telegram.desktop", "ru.keepcoder.TelegramOther", "ru.keepcoder.Telegram.helper",
+      "com.larksuite.larkAppOther", "com.larksuite.larkApp.helper",
+      "com.electron.larkOther", "com.electron.lark.helper",
     ] {
       try fixture.setBundleID(id)
       try expect(try ClonePreflight().inspectSource(fixture.source).application.bundleID == id)
@@ -246,10 +252,15 @@ struct PreflightChecks {
   }
 
   private static func checkRebuilds() throws {
-    for reason in ["blocked_application", "insufficient_disk_space"] {
+    for (reason, bundleID) in [
+      ("blocked_application", "ru.keepcoder.Telegram"),
+      ("blocked_application", "com.larksuite.larkApp"),
+      ("blocked_application", "com.electron.lark"),
+      ("insufficient_disk_space", "local.app-clone.fixture"),
+    ] {
       let fixture = try Fixture()
       defer { fixture.cleanup() }
-      if reason == "blocked_application" { try fixture.setBundleID("ru.keepcoder.Telegram") }
+      try fixture.setBundleID(bundleID)
       let allowed = CloneEngine(
         root: fixture.root,
         preflight: ClonePreflight(policy: ClonePolicy(checksBlockedApplications: false)))

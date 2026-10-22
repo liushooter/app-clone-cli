@@ -6,7 +6,7 @@
 
 | 检查 | 默认规则 | JSON 错误码 |
 | --- | --- | --- |
-| 禁止克隆列表 | 完整 Bundle ID 忽略大小写匹配 `ru.keepcoder.Telegram` | `blocked_application` |
+| 禁止克隆列表 | 完整 Bundle ID 忽略大小写匹配 `ru.keepcoder.Telegram`、`com.larksuite.larkApp`、`com.electron.lark` | `blocked_application` |
 | iOS 平台 | 拒绝 iPhone、iPad 与 iOS 模拟器应用 | `unsupported_ios_app` |
 | 系统应用 | 拒绝系统路径或带 `restricted` 标记的应用 | `unsupported_system_app` |
 | Electron 框架 | 拒绝标准框架和包含有效 Electron fuse wire 的改名框架 | `unsupported_electron_app` |
@@ -20,6 +20,12 @@
 `build()` 接收这次检查结果，在工作空间锁内执行 `checkDestination()`，通过后才建立暂存任务和复制。容量不足时可能已经初始化空工作空间，但不会创建复制任务、更新清单或消耗创建序号。重建拒绝后原分身、配置和清单保持不变。
 
 `inspect` 继续只读取基本 macOS 应用元数据，不表示应用可以克隆；`list`、`stats`、`verify`、只读 `env`、定位、注册和删除不执行准入策略。无需重建的同名改名或无配置重置保留原有行为。
+
+## Lark 与飞书的兼容边界
+
+同步自 `app-clone-exe` 提交 `c9310b7`：Lark（`com.larksuite.larkApp`）与飞书（`com.electron.lark`）默认不支持克隆。源项目记录过 Lark 打开原版及需要重新登录的反馈，尚未完成独立账号和数据隔离验证；进入登录页不代表兼容性通过。
+
+创建及已有分身的改名、换图标和环境配置重建统一拒绝，并保留已有分身、配置与清单；只读检查及删除仍可操作，不主动删除既有副本。CLI 沿用上述 `inspect` 与无需重建操作的行为。
 
 ## 检测实现
 

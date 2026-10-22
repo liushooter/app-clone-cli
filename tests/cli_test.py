@@ -749,7 +749,14 @@ int main(void) {
     def test_blocked_bundle_ids_are_rejected_before_reading_executable(self):
         executable = self.source / "Contents/MacOS/fixture"
         executable.write_bytes(b"\xcf\xfa\xed\xfe")
-        for bundle_id in ["ru.keepcoder.Telegram", "RU.KEEPCODER.TELEGRAM"]:
+        for bundle_id in [
+            "ru.keepcoder.Telegram",
+            "RU.KEEPCODER.TELEGRAM",
+            "com.larksuite.larkApp",
+            "COM.LARKSUITE.LARKAPP",
+            "com.electron.lark",
+            "COM.ELECTRON.LARK",
+        ]:
             self.info["CFBundleIdentifier"] = bundle_id
             self.plist.write_bytes(plistlib.dumps(self.info))
             original = digest_tree(self.source)
@@ -780,6 +787,10 @@ int main(void) {
             "org.telegram.desktop",
             "ru.keepcoder.TelegramOther",
             "ru.keepcoder.Telegram.helper",
+            "com.larksuite.larkAppOther",
+            "com.larksuite.larkApp.helper",
+            "com.electron.larkOther",
+            "com.electron.lark.helper",
         ]:
             self.info["CFBundleIdentifier"] = bundle_id
             self.plist.write_bytes(plistlib.dumps(self.info))
