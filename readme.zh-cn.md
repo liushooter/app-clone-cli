@@ -145,7 +145,7 @@ tag 支持 `v0.1.0` 或 `v0.2.0-rc.1` 这样的格式，后者会标记为预发
 
 `clone` / `create` 不支持克隆系统应用（例如 Maps、Finder、Safari）。创建前解析符号链接，检查真实路径是否位于 `/System` 或 `/Library/Apple/System`，以及应用目录或主程序是否带有 `restricted` 系统保护标记；命中时提示“不支持克隆系统应用”，JSON 错误码为 `unsupported_system_app`。拦截发生在创建工作空间和复制文件之前。`inspect` 仍可查看系统应用信息。仅有 `com.apple.*` Bundle ID 不会触发拦截。
 
-统一前置检查还拒绝 `ru.keepcoder.Telegram`（`blocked_application`）、iPhone／iPad 及 iOS 模拟器应用（`unsupported_ios_app`）、Electron 框架应用（`unsupported_electron_app`，包含改名框架）。Electron 只检测并提示不支持，不实现克隆兼容。
+统一前置检查还拒绝 Telegram 原生 Mac 客户端（`ru.keepcoder.Telegram`）、Lark（`com.larksuite.larkApp`）和飞书（`com.electron.lark`）（均返回 `blocked_application`）、iPhone／iPad 及 iOS 模拟器应用（`unsupported_ios_app`）、Electron 框架应用（`unsupported_electron_app`，包含改名框架）。Electron 只检测并提示不支持，不实现克隆兼容。
 
 默认拒绝超过 5 GB（5,000,000,000 字节）的应用（`application_too_large`），并要求目标磁盘至少有“应用估算大小 × 2 + 1 GB”的可用空间（不足时报 `insufficient_disk_space`）。隐藏文件、嵌套应用和稀疏文件均计入大小，超过上限提前拒绝；无法完整读取大小或容量也会拒绝。创建、改名、换图标和修改环境配置共用检查；重建会核对原应用 ID，拒绝后保留已有副本和清单。只读查询和删除仍可用，`inspect` 不表示兼容。代码开关与执行顺序见[前置检查说明](docs/preflight.md)。
 

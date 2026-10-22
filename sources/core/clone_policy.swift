@@ -14,7 +14,9 @@ struct ClonePolicy: Sendable {
 
   // 按完整 Bundle ID 匹配，忽略大小写；增删条目后重新编译即可生效。
   var blockedBundleIdentifiers: Set<String> = [
-    "ru.keepcoder.Telegram"
+    "ru.keepcoder.Telegram",
+    "com.larksuite.larkApp",
+    "com.electron.lark",
   ]
 
   var maximumApplicationBytes: Int64 = 5_000_000_000
